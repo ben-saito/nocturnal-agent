@@ -106,6 +106,9 @@ class NocturnalAgentCLI:
         # init コマンド
         self._add_init_parser(subparsers)
         
+        # spec コマンド
+        self._add_spec_parser(subparsers)
+        
         return parser
     
     def _add_start_parser(self, subparsers):
@@ -292,6 +295,63 @@ class NocturnalAgentCLI:
             help='ワークスペースディレクトリ'
         )
         init_parser.set_defaults(func=self._init_command)
+    
+    def _add_spec_parser(self, subparsers):
+        """specコマンドパーサーを追加"""
+        spec_parser = subparsers.add_parser(
+            'spec', 
+            help='Spec Kit仕様管理',
+            description='GitHub Spec Kit準拠の技術仕様管理を行います'
+        )
+        spec_subparsers = spec_parser.add_subparsers(dest='spec_action')
+        
+        # spec list
+        list_parser = spec_subparsers.add_parser('list', help='仕様一覧を表示')
+        list_parser.add_argument('--type', '-t', 
+                               choices=['feature', 'architecture', 'api', 'design', 'process'],
+                               help='仕様タイプでフィルタ')
+        list_parser.add_argument('--status', '-s',
+                               choices=['draft', 'review', 'approved', 'implemented', 'deprecated'],
+                               help='ステータスでフィルタ')
+        list_parser.set_defaults(func=self._spec_list_command)
+        
+        # spec show
+        show_parser = spec_subparsers.add_parser('show', help='仕様詳細を表示')
+        show_parser.add_argument('spec_file', help='仕様ファイルパス')
+        show_parser.add_argument('--format', '-f', choices=['yaml', 'markdown'], 
+                               default='yaml', help='表示形式')
+        show_parser.set_defaults(func=self._spec_show_command)
+        
+        # spec create
+        create_parser = spec_subparsers.add_parser('create', help='新規仕様を作成')
+        create_parser.add_argument('title', help='仕様タイトル')
+        create_parser.add_argument('--type', '-t', 
+                                 choices=['feature', 'architecture', 'api', 'design', 'process'],
+                                 default='feature', help='仕様タイプ')
+        create_parser.add_argument('--template', action='store_true', 
+                                 help='テンプレートから作成')
+        create_parser.set_defaults(func=self._spec_create_command)
+        
+        # spec update
+        update_parser = spec_subparsers.add_parser('update', help='仕様ステータスを更新')
+        update_parser.add_argument('spec_file', help='仕様ファイルパス')
+        update_parser.add_argument('--status', '-s', required=True,
+                                 choices=['draft', 'review', 'approved', 'implemented', 'deprecated'],
+                                 help='新しいステータス')
+        update_parser.set_defaults(func=self._spec_update_command)
+        
+        # spec report
+        report_parser = spec_subparsers.add_parser('report', help='仕様レポートを生成')
+        report_parser.add_argument('--output', '-o', help='出力ファイル名')
+        report_parser.set_defaults(func=self._spec_report_command)
+        
+        # spec cleanup
+        cleanup_parser = spec_subparsers.add_parser('cleanup', help='古い仕様をクリーンアップ')
+        cleanup_parser.add_argument('--days', '-d', type=int, default=30, 
+                                  help='クリーンアップ対象日数（デフォルト30日）')
+        cleanup_parser.add_argument('--dry-run', action='store_true', 
+                                   help='実際には削除せずに対象を表示')
+        cleanup_parser.set_defaults(func=self._spec_cleanup_command)
     
     def _initialize_config(self, config_path: Optional[str] = None):
         """設定初期化"""
@@ -818,6 +878,225 @@ nocturnal report daily --config {config_path}
                 for component, comp_status in components.items():
                     status_icon = '✅' if comp_status.get('healthy', False) else '❌'
                     print(f"    {component}: {status_icon}")
+
+
+    async def _spec_list_command(self, args) -> None:
+        """spec list コマンド実装"""
+        from nocturnal_agent.design.spec_kit_integration import SpecKitManager, SpecType, SpecStatus
+        
+        workspace_path = self.config.workspace_path
+        spec_manager = SpecKitManager(str(Path(workspace_path) / "specs"))
+        
+        spec_type_filter = SpecType(args.type) if args.type else None
+        status_filter = SpecStatus(args.status) if args.status else None
+        
+        specs = spec_manager.list_specs(spec_type_filter, status_filter)
+        
+        if not specs:
+            print("仕様が見つかりません")
+            return
+        
+        print(f"📋 仕様一覧 ({len(specs)}件)")
+        print()
+        
+        for spec in specs:
+            status_icon = {
+                'draft': '📝',
+                'review': '👀', 
+                'approved': '✅',
+                'implemented': '🚀',
+                'deprecated': '❌'
+            }.get(spec['status'], '❓')
+            
+            type_icon = {
+                'feature': '⭐',
+                'architecture': '🏗️',
+                'api': '🔌',
+                'design': '🎨',
+                'process': '⚙️'
+            }.get(spec['spec_type'], '📄')
+            
+            print(f"{status_icon} {type_icon} {spec['title']}")
+            print(f"   ファイル: {spec['file_path']}")
+            print(f"   ステータス: {spec['status']} | タイプ: {spec['spec_type']}")
+            print(f"   作成者: {', '.join(spec['authors'])}")
+            print(f"   更新: {spec['updated_at']}")
+            print()
+    
+    async def _spec_show_command(self, args) -> None:
+        """spec show コマンド実装"""
+        from nocturnal_agent.design.spec_kit_integration import SpecKitManager
+        
+        workspace_path = self.config.workspace_path
+        spec_manager = SpecKitManager(str(Path(workspace_path) / "specs"))
+        
+        spec_path = Path(args.spec_file)
+        if not spec_path.exists():
+            # 相対パスの場合、specsディレクトリ内を検索
+            potential_path = Path(workspace_path) / "specs" / args.spec_file
+            if potential_path.exists():
+                spec_path = potential_path
+            else:
+                print(f"❌ 仕様ファイルが見つかりません: {args.spec_file}")
+                return
+        
+        try:
+            spec = spec_manager.load_spec(spec_path)
+            
+            if args.format == 'markdown':
+                markdown_content = spec_manager.generate_spec_markdown(spec)
+                print(markdown_content)
+            else:
+                # YAML形式で表示
+                with open(spec_path, 'r', encoding='utf-8') as f:
+                    print(f.read())
+                    
+        except Exception as e:
+            print(f"❌ 仕様読み込みエラー: {e}")
+    
+    async def _spec_create_command(self, args) -> None:
+        """spec create コマンド実装"""
+        from nocturnal_agent.design.spec_kit_integration import (
+            SpecKitManager, SpecType, SpecMetadata, TechnicalSpec,
+            SpecDesign, SpecImplementation, SpecStatus
+        )
+        from nocturnal_agent.core.models import Task, TaskPriority
+        
+        workspace_path = self.config.workspace_path
+        spec_manager = SpecKitManager(str(Path(workspace_path) / "specs"))
+        
+        spec_type = SpecType(args.type)
+        
+        if args.template:
+            # テンプレートから作成
+            print(f"📝 {spec_type.value}仕様テンプレートを作成しています...")
+            
+            # ダミータスクを作成してテンプレート生成
+            dummy_task = Task(
+                id=f"template_{args.title.replace(' ', '_').lower()}",
+                description=args.title,
+                priority=TaskPriority.MEDIUM,
+                estimated_quality=0.8
+            )
+            
+            spec = spec_manager.create_spec_from_task(dummy_task, spec_type)
+            spec.metadata.title = args.title
+            
+        else:
+            # 手動作成
+            print(f"📝 {spec_type.value}仕様を作成しています...")
+            
+            metadata = SpecMetadata(
+                title=args.title,
+                status=SpecStatus.DRAFT,
+                spec_type=spec_type,
+                authors=["CLI User"]
+            )
+            
+            spec = TechnicalSpec(
+                metadata=metadata,
+                summary=f"{args.title}の仕様",
+                motivation="この仕様が必要な理由",
+                requirements=[],
+                design=SpecDesign(overview="設計概要"),
+                implementation=SpecImplementation(approach="実装アプローチ")
+            )
+        
+        spec_path = spec_manager.save_spec(spec)
+        print(f"✅ 仕様作成完了: {spec_path}")
+        
+        if args.template:
+            print(f"📝 エディタで編集してください: {spec_path}")
+    
+    async def _spec_update_command(self, args) -> None:
+        """spec update コマンド実装"""
+        from nocturnal_agent.design.spec_kit_integration import SpecKitManager, SpecStatus
+        
+        workspace_path = self.config.workspace_path
+        spec_manager = SpecKitManager(str(Path(workspace_path) / "specs"))
+        
+        spec_path = Path(args.spec_file)
+        if not spec_path.exists():
+            potential_path = Path(workspace_path) / "specs" / args.spec_file
+            if potential_path.exists():
+                spec_path = potential_path
+            else:
+                print(f"❌ 仕様ファイルが見つかりません: {args.spec_file}")
+                return
+        
+        new_status = SpecStatus(args.status)
+        success = spec_manager.update_spec_status(spec_path, new_status)
+        
+        if success:
+            print(f"✅ 仕様ステータスを更新しました: {args.status}")
+        else:
+            print(f"❌ 仕様ステータス更新に失敗しました")
+    
+    async def _spec_report_command(self, args) -> None:
+        """spec report コマンド実装"""
+        if not hasattr(self, 'spec_executor') or self.spec_executor is None:
+            from nocturnal_agent.execution.spec_driven_executor import SpecDrivenExecutor
+            self.spec_executor = SpecDrivenExecutor(self.config.workspace_path, self.logger)
+        
+        print("📊 仕様レポートを生成しています...")
+        
+        report = self.spec_executor.generate_spec_report()
+        
+        if args.output:
+            import json
+            output_path = Path(args.output)
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump(report, f, ensure_ascii=False, indent=2, default=str)
+            print(f"✅ レポート保存完了: {output_path}")
+        else:
+            # コンソール出力
+            print(f"\n📊 仕様管理レポート")
+            print(f"生成日時: {report['generated_at']}")
+            print(f"総仕様数: {report['total_specs']}")
+            
+            print(f"\n📈 ステータス別内訳:")
+            for status, count in report['status_breakdown'].items():
+                status_icon = {
+                    'draft': '📝',
+                    'review': '👀',
+                    'approved': '✅', 
+                    'implemented': '🚀',
+                    'deprecated': '❌'
+                }.get(status, '❓')
+                print(f"  {status_icon} {status}: {count}件")
+            
+            print(f"\n🏷️ タイプ別内訳:")
+            for spec_type, count in report['type_breakdown'].items():
+                type_icon = {
+                    'feature': '⭐',
+                    'architecture': '🏗️',
+                    'api': '🔌',
+                    'design': '🎨',
+                    'process': '⚙️'
+                }.get(spec_type, '📄')
+                print(f"  {type_icon} {spec_type}: {count}件")
+            
+            if 'quality_metrics' in report and report['quality_metrics']:
+                metrics = report['quality_metrics']
+                print(f"\n🎯 品質メトリクス:")
+                print(f"  平均品質スコア: {metrics['average_quality']:.3f}")
+                print(f"  最高品質スコア: {metrics['max_quality']:.3f}")
+                print(f"  実行成功率: {metrics['success_rate']:.1%}")
+    
+    async def _spec_cleanup_command(self, args) -> None:
+        """spec cleanup コマンド実装"""
+        if not hasattr(self, 'spec_executor') or self.spec_executor is None:
+            from nocturnal_agent.execution.spec_driven_executor import SpecDrivenExecutor
+            self.spec_executor = SpecDrivenExecutor(self.config.workspace_path, self.logger)
+        
+        if args.dry_run:
+            print(f"🔍 {args.days}日以前の古い仕様を検索中...")
+            # TODO: dry-runの実装
+            print("(dry-run機能は未実装)")
+        else:
+            print(f"🧹 {args.days}日以前の古い仕様をクリーンアップ中...")
+            cleaned_count = await self.spec_executor.cleanup_old_specs(args.days)
+            print(f"✅ クリーンアップ完了: {cleaned_count}件の仕様を削除しました")
 
 
 def main():

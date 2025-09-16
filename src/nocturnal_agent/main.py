@@ -15,6 +15,8 @@ from .safety.safety_coordinator import SafetyCoordinator
 from .parallel.parallel_executor import ParallelExecutor
 from .reporting.report_generator import ReportGenerator
 from .core.models import Task, ExecutionResult
+from .execution.spec_driven_executor import SpecDrivenExecutor
+from .design.spec_kit_integration import SpecType
 
 
 class NocturnalAgent:
@@ -82,6 +84,9 @@ class NocturnalAgent:
         
         # レポートジェネレーター
         self.report_generator = ReportGenerator(self.logger)
+        
+        # Spec Kit駆動実行システム
+        self.spec_executor = SpecDrivenExecutor(str(self.workspace_path), self.logger)
         
         self.logger.log(
             LogLevel.INFO,
@@ -394,6 +399,57 @@ class NocturnalAgent:
             )
         
         return success
+    
+    async def execute_task_with_spec_design(self, task: Task, 
+                                           executor_func,
+                                           spec_type: SpecType = SpecType.FEATURE) -> ExecutionResult:
+        """Spec Kit仕様駆動タスク実行"""
+        
+        self.logger.log(
+            LogLevel.INFO,
+            LogCategory.DESIGN,
+            f"Spec Kit駆動実行開始: {task.description}",
+            task_id=task.id,
+            extra_data={
+                'spec_type': spec_type.value,
+                'estimated_quality': task.estimated_quality
+            }
+        )
+        
+        try:
+            # Spec Kit駆動実行
+            result = await self.spec_executor.execute_task_with_spec(
+                task, executor_func, spec_type
+            )
+            
+            self.logger.log(
+                LogLevel.INFO,
+                LogCategory.DESIGN,
+                f"Spec Kit駆動実行完了: 成功={result.success}",
+                task_id=task.id,
+                extra_data={
+                    'quality_achieved': result.quality_score.overall if result.quality_score else 0,
+                    'spec_driven': True
+                }
+            )
+            
+            return result
+            
+        except Exception as e:
+            self.logger.log_error(
+                "spec_driven_execution_error",
+                f"Spec Kit駆動実行エラー: {e}",
+                task_id=task.id
+            )
+            raise
+    
+    async def generate_spec_report(self) -> Dict[str, Any]:
+        """Spec Kit仕様レポート生成"""
+        return self.spec_executor.generate_spec_report()
+    
+    async def cleanup_old_specs(self, days_old: int = 30) -> int:
+        """古いSpec Kit仕様のクリーンアップ"""
+        return await self.spec_executor.cleanup_old_specs(days_old)
     
     def validate_system(self) -> Dict[str, Any]:
         """システム検証"""
