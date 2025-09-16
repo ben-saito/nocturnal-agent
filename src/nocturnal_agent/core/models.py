@@ -87,6 +87,21 @@ class HistoryEntry:
     agent_used: Optional[AgentType] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
+@dataclass
+class DevelopmentHistory:
+    """Complete development history with execution details."""
+    task_id: str
+    task_description: str
+    timestamp: datetime
+    success: bool
+    agent_used: str
+    execution_time: float
+    quality_score: Optional[QualityScore] = None
+    generated_code: str = ""
+    result_summary: Optional[str] = None
+    files_modified: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class Lesson:
@@ -119,7 +134,7 @@ class ProjectContext:
     project_name: str
     patterns: List[CodePattern] = field(default_factory=list)
     consistency_rules: List[ConsistencyRule] = field(default_factory=list)
-    development_history: List[HistoryEntry] = field(default_factory=list)
+    development_history: List[DevelopmentHistory] = field(default_factory=list)
     lessons_learned: List[Lesson] = field(default_factory=list)
     success_patterns: List[SuccessPattern] = field(default_factory=list)
     
