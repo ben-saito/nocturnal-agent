@@ -48,6 +48,13 @@ class NocturnalAgent:
             'total_cost': 0.0,
             'quality_scores': []
         }
+        
+        # セッション設定（ユーザー指示による動的設定）
+        self.session_settings = {
+            'use_spec_kit': False,  # デフォルトはSpec Kit使用しない
+            'spec_type': 'feature',
+            'quality_threshold': self.config.minimum_quality_threshold
+        }
     
     def _initialize_components(self):
         """コンポーネント初期化"""
@@ -61,10 +68,11 @@ class NocturnalAgent:
             'max_file_size_mb': self.config.logging.max_file_size_mb
         })
         
-        # スケジューラー
+        # スケジューラー（メインエージェントの参照を渡す）
         self.scheduler = NightScheduler(
             str(self.workspace_path), 
-            self.config
+            self.config,
+            main_agent=self  # セッション設定へのアクセス用
         )
         
         # コスト管理
@@ -102,7 +110,9 @@ class NocturnalAgent:
                                      immediate: bool = False,
                                      duration_minutes: Optional[int] = None,
                                      task_limit: Optional[int] = None,
-                                     quality_threshold: Optional[float] = None) -> str:
+                                     quality_threshold: Optional[float] = None,
+                                     use_spec_kit: bool = False,
+                                     spec_type: str = "feature") -> str:
         """自律セッション開始"""
         if self.is_running:
             raise RuntimeError("セッションが既に実行中です")
@@ -120,9 +130,18 @@ class NocturnalAgent:
                 'immediate': immediate,
                 'duration_minutes': duration_minutes,
                 'task_limit': task_limit,
-                'quality_threshold': quality_threshold
+                'quality_threshold': quality_threshold,
+                'use_spec_kit': use_spec_kit,
+                'spec_type': spec_type if use_spec_kit else None
             }
         )
+        
+        # セッション設定を保存
+        self.session_settings = {
+            'use_spec_kit': use_spec_kit,
+            'spec_type': spec_type,
+            'quality_threshold': quality_threshold or self.config.minimum_quality_threshold
+        }
         
         try:
             # 安全性セッション初期化

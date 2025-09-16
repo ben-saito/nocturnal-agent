@@ -138,6 +138,17 @@ class NocturnalAgentCLI:
             type=float, 
             help='最小品質閾値'
         )
+        start_parser.add_argument(
+            '--use-spec-kit', 
+            action='store_true',
+            help='GitHub Spec Kit仕様駆動で実行'
+        )
+        start_parser.add_argument(
+            '--spec-type', 
+            choices=['feature', 'architecture', 'api', 'design', 'process'],
+            default='feature',
+            help='Spec Kit仕様タイプ（--use-spec-kit使用時）'
+        )
         start_parser.set_defaults(func=self._start_command)
     
     def _add_stop_parser(self, subparsers):
@@ -372,7 +383,11 @@ class NocturnalAgentCLI:
     
     async def _start_command(self, args) -> None:
         """start コマンド実装"""
-        print("🚀 夜間実行セッションを開始します...")
+        if args.use_spec_kit:
+            print("🚀 Spec Kit仕様駆動で夜間実行セッションを開始します...")
+            print(f"📋 仕様タイプ: {args.spec_type}")
+        else:
+            print("🚀 夜間実行セッションを開始します...")
         
         # スケジューラーの初期化
         workspace_path = args.workspace or self.config.workspace_path
@@ -383,13 +398,18 @@ class NocturnalAgentCLI:
             'immediate_start': args.immediate,
             'duration_minutes': args.duration,
             'task_limit': args.task_limit,
-            'quality_threshold': args.quality_threshold or self.config.minimum_quality_threshold
+            'quality_threshold': args.quality_threshold or self.config.minimum_quality_threshold,
+            'use_spec_kit': args.use_spec_kit,
+            'spec_type': args.spec_type if args.use_spec_kit else None
         }
         
         # セッション開始
         session_id = await self.scheduler.start_night_session(**execution_config)
         
         print(f"✅ セッション開始: {session_id}")
+        
+        if args.use_spec_kit:
+            print("📝 タスク実行時に自動的にSpec Kit仕様が生成されます")
         
         # 進行状況監視
         if args.immediate:

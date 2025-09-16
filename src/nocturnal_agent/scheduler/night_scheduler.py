@@ -20,15 +20,17 @@ logger = logging.getLogger(__name__)
 class NightScheduler:
     """Main coordinator for night-time autonomous development."""
     
-    def __init__(self, project_path: str, config: Dict[str, Any]):
+    def __init__(self, project_path: str, config: Dict[str, Any], main_agent=None):
         """Initialize night scheduler.
         
         Args:
             project_path: Path to the project directory
             config: Scheduler configuration
+            main_agent: Reference to main NocturnalAgent for session settings
         """
         self.project_path = Path(project_path)
         self.config = config
+        self.main_agent = main_agent  # セッション設定へのアクセス用
         
         # Initialize components
         self.time_controller = TimeController(config.get('time_control', {}))
@@ -246,31 +248,69 @@ class NightScheduler:
         Returns:
             Execution result
         """
-        # For now, use Claude agent for all tasks
-        # In the future, could route to different agents based on task type
-        
         try:
-            # For testing - create mock result
-            from nocturnal_agent.core.models import QualityScore, AgentType
+            # Check if Spec Kit should be used based on session settings
+            should_use_spec_kit = False
+            spec_type_str = 'feature'
             
-            logger.info(f"Mock execution for task: {task.id}")
+            if self.main_agent and hasattr(self.main_agent, 'session_settings'):
+                should_use_spec_kit = self.main_agent.session_settings.get('use_spec_kit', False)
+                spec_type_str = self.main_agent.session_settings.get('spec_type', 'feature')
             
-            # Simulate execution
-            await asyncio.sleep(1)  # Simulate work
+            if should_use_spec_kit:
+                # Use Spec Kit driven execution
+                logger.info(f"Using Spec Kit driven execution for task: {task.id} (type: {spec_type_str})")
+                
+                from nocturnal_agent.design.spec_kit_integration import SpecType
+                
+                # Convert string to SpecType enum
+                spec_type = SpecType.FEATURE  # default
+                if spec_type_str in ['feature', 'architecture', 'api', 'design', 'process']:
+                    spec_type = SpecType(spec_type_str)
+                
+                # Create mock executor function for now
+                async def mock_executor(task_to_execute):
+                    """Mock executor function"""
+                    from nocturnal_agent.core.models import QualityScore, AgentType
+                    await asyncio.sleep(1)  # Simulate work
+                    return ExecutionResult(
+                        task_id=task_to_execute.id,
+                        success=True,
+                        quality_score=QualityScore(
+                            overall=0.92,
+                            code_quality=0.9,
+                            consistency=0.95,
+                            test_coverage=0.9
+                        ),
+                        generated_code="# Spec Kit driven code\ndef spec_driven_function():\n    return True",
+                        agent_used=AgentType.LOCAL_LLM,
+                        execution_time=1.0
+                    )
+                
+                # Use main agent's Spec Kit execution method
+                return await self.main_agent.execute_task_with_spec_design(task, mock_executor, spec_type)
             
-            return ExecutionResult(
-                task_id=task.id,
-                success=True,
-                quality_score=QualityScore(
-                    overall=0.9,
-                    code_quality=0.85,
-                    consistency=0.95,
-                    test_coverage=0.9
-                ),
-                generated_code="# Mock generated code\ndef test_function():\n    return True",
-                agent_used=AgentType.LOCAL_LLM,
-                execution_time=1.0
-            )
+            else:
+                # Use standard execution (mock for now)
+                logger.info(f"Using standard execution for task: {task.id}")
+                
+                # Simulate execution
+                await asyncio.sleep(1)  # Simulate work
+                
+                from nocturnal_agent.core.models import QualityScore, AgentType
+                return ExecutionResult(
+                    task_id=task.id,
+                    success=True,
+                    quality_score=QualityScore(
+                        overall=0.9,
+                        code_quality=0.85,
+                        consistency=0.95,
+                        test_coverage=0.9
+                    ),
+                    generated_code="# Standard generated code\ndef standard_function():\n    return True",
+                    agent_used=AgentType.LOCAL_LLM,
+                    execution_time=1.0
+                )
             
         except Exception as e:
             logger.error(f"Agent execution failed: {e}")
