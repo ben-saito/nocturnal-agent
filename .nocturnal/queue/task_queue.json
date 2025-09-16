@@ -1,0 +1,21 @@
+{
+  "status": "active",
+  "stats": {
+    "tasks_queued": 4,
+    "tasks_completed": 1,
+    "tasks_failed": 0,
+    "average_completion_time": 7e-06,
+    "queue_start_time": "2025-09-16T22:55:52.364910"
+  },
+  "pending_tasks": [
+    {
+      "task_id": "scheduler-test-task",
+      "priority_score": 2.999999999861111,
+      "queued_at": "2025-09-16T22:55:52.367172",
+      "estimated_duration": 900.0,
+      "dependencies": [],
+      "retry_count": 0
+    }
+  ],
+  "running_tasks": []
+}

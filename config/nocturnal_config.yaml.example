@@ -1,0 +1,87 @@
+# Nocturnal Agent 設定ファイル例
+# このファイルをnocturnal_config.yamlとしてコピーして使用してください
+
+# 基本設定
+project_name: "夜間自律開発プロジェクト"
+workspace_path: "./"
+data_directory: "./data"
+log_directory: "./logs"
+
+# スケジューラー設定
+night_start_hour: 22     # 22時から夜間実行開始
+night_end_hour: 6       # 6時まで夜間実行
+timezone: "Asia/Tokyo"
+
+# 品質設定
+target_quality_threshold: 0.8    # 目標品質スコア
+minimum_quality_threshold: 0.6   # 最小品質スコア
+
+# データベース設定
+database:
+  type: "sqlite"
+  path: "./data/nocturnal_agent.db"
+  backup_enabled: true
+  backup_interval_hours: 24
+
+# エージェント設定
+agents:
+  primary_agent: "local_llm"         # メインエージェント
+  fallback_agents: ["claude_code"]   # フォールバックエージェント
+  claude_api_key: null               # Claude API キー（環境変数 NOCTURNAL_CLAUDE_API_KEY でも設定可能）
+  openai_api_key: null               # OpenAI API キー（環境変数 NOCTURNAL_OPENAI_API_KEY でも設定可能）
+  max_retries: 3
+  timeout_seconds: 300
+
+# コスト管理設定
+cost_management:
+  monthly_budget: 10.0              # 月間予算（USD）
+  storage_path: "./data/cost_data"  # コストデータ保存先
+  alert_thresholds: [0.5, 0.8, 0.9, 0.95]  # アラート閾値
+  free_tool_target_rate: 0.9        # 無料ツール使用目標率（90%）
+  emergency_mode_threshold: 0.95    # 緊急モード発動閾値
+  free_tools:
+    - "local_llm"
+    - "github_api"
+    - "file_operations"
+
+# 安全性設定
+safety:
+  enabled: true
+  backup_before_execution: true     # 実行前自動バックアップ
+  danger_detection_enabled: true    # 危険操作検出
+  rollback_enabled: true           # ロールバック機能
+  max_rollback_points: 10          # 最大ロールバックポイント数
+  backup_retention_days: 7         # バックアップ保持期間
+  dangerous_operations_blocked:    # ブロックする危険操作
+    - "rm -rf"
+    - "format"
+    - "del /q"
+    - "sudo rm"
+    - "DROP TABLE"
+
+# 並行実行設定
+parallel_execution:
+  max_parallel_executions: 3        # 最大並行実行数
+  execution_timeout_seconds: 600    # 実行タイムアウト（10分）
+  quality_assessment_enabled: true  # 品質評価有効
+  high_quality_threshold: 0.85      # 高品質閾値
+  medium_quality_threshold: 0.7     # 中品質閾値
+  branch_prefix: "nocturnal"        # ブランチ名プレフィックス
+  max_parallel_branches: 5          # 最大並行ブランチ数
+
+# ログ設定
+logging:
+  level: "INFO"                     # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "structured"              # structured（JSON Lines）, simple
+  output_path: "./logs"
+  max_file_size_mb: 100            # 最大ファイルサイズ
+  retention_days: 30               # ログ保持期間
+  console_output: true             # コンソール出力
+  file_output: true                # ファイル出力
+
+# 環境変数による設定オーバーライド例:
+# NOCTURNAL_PROJECT_NAME="My Project"           # project_name を上書き
+# NOCTURNAL_MONTHLY_BUDGET=15.0                 # cost_management.monthly_budget を上書き
+# NOCTURNAL_CLAUDE_API_KEY="sk-xxx"             # agents.claude_api_key を上書き
+# NOCTURNAL_LOG_LEVEL="DEBUG"                   # logging.level を上書き
+# NOCTURNAL_NIGHT_START_HOUR=23                 # night_start_hour を上書き

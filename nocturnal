@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""
+Nocturnal Agent CLI実行スクリプト
+"""
+
+import sys
+import os
+from pathlib import Path
+
+# プロジェクトルートをPythonパスに追加
+project_root = Path(__file__).parent
+sys.path.insert(0, str(project_root / 'src'))
+
+# メインCLIモジュールをインポート
+from nocturnal_agent.cli.main import main
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,42 @@
+{
+  "task_id": "failed-test",
+  "task_description": "Test task that fails completely",
+  "quality_score": 0.15,
+  "analysis": {
+    "failure_type": "critical_quality_failure",
+    "root_causes": [
+      "Low quality scores detected",
+      "Analysis system error: 'str' object has no attribute 'description'",
+      "Insufficient code quality measures"
+    ],
+    "impact_severity": "medium",
+    "recommended_actions": [
+      "Review generated code manually",
+      "Improve code structure and error handling",
+      "Add comprehensive tests",
+      "Enhance consistency checks"
+    ],
+    "prompt_improvements": [
+      "Error generating optimizations: 'str' object has no attribute 'description'"
+    ],
+    "learning_points": [
+      "Analysis system needs improvement",
+      "Manual review required for complex failures",
+      "Quality thresholds may need adjustment"
+    ],
+    "confidence_score": 0.3,
+    "timestamp": "2025-09-16T21:26:20.144604"
+  },
+  "context": {
+    "execution_time": 12.3,
+    "errors": [
+      "Syntax error",
+      "Logic error",
+      "No tests",
+      "Improvement application failed: 'LocalLLMAgent' object has no attribute 'generate_code'",
+      "Improvement application failed: 'LocalLLMAgent' object has no attribute 'generate_code'",
+      "Improvement application failed: 'LocalLLMAgent' object has no attribute 'generate_code'"
+    ],
+    "files_modified": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "items": [
+    {
+      "id": "failed-test_20250916_212620",
+      "task": {
+        "id": "failed-test",
+        "description": "Test task that fails completely",
+        "priority": 2
+      },
+      "result": {
+        "success": false,
+        "quality_score": {
+          "overall": 0.15,
+          "code_quality": 0.1,
+          "consistency": 0.2,
+          "test_coverage": 0.0
+        },
+        "errors": [
+          "Syntax error",
+          "Logic error",
+          "No tests",
+          "Improvement application failed: 'LocalLLMAgent' object has no attribute 'generate_code'",
+          "Improvement application failed: 'LocalLLMAgent' object has no attribute 'generate_code'",
+          "Improvement application failed: 'LocalLLMAgent' object has no attribute 'generate_code'"
+        ],
+        "execution_time": 12.3
+      },
+      "analysis": {
+        "failure_type": "critical_quality_failure",
+        "root_causes": [
+          "Low quality scores detected",
+          "Analysis system error: 'str' object has no attribute 'description'",
+          "Insufficient code quality measures"
+        ],
+        "impact_severity": "medium",
+        "confidence_score": 0.3
+      },
+      "status": "pending",
+      "priority": "critical",
+      "category": "critical_quality_failure",
+      "created_at": "2025-09-16T21:26:20.145542",
+      "updated_at": "2025-09-16T21:26:20.145543",
+      "review_deadline": "2025-09-17T10:00:00",
+      "reviewer_notes": [],
+      "approval_reason": null,
+      "rejection_reason": null,
+      "improvement_attempts": 3,
+      "last_attempt_quality": 0.15
+    }
+  ]
+}

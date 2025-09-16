@@ -1,0 +1,42 @@
+{
+  "task_id": "low-quality-test",
+  "task_description": "Test task with low quality code requiring improvement",
+  "quality_score": 0.45,
+  "analysis": {
+    "failure_type": "code_quality_issue",
+    "root_causes": [
+      "Low quality scores detected",
+      "Analysis system error: 'str' object has no attribute 'description'",
+      "Insufficient code quality measures"
+    ],
+    "impact_severity": "medium",
+    "recommended_actions": [
+      "Review generated code manually",
+      "Improve code structure and error handling",
+      "Add comprehensive tests",
+      "Enhance consistency checks"
+    ],
+    "prompt_improvements": [
+      "Error generating optimizations: 'str' object has no attribute 'description'"
+    ],
+    "learning_points": [
+      "Analysis system needs improvement",
+      "Manual review required for complex failures",
+      "Quality thresholds may need adjustment"
+    ],
+    "confidence_score": 0.3,
+    "timestamp": "2025-09-16T21:26:19.667385"
+  },
+  "context": {
+    "execution_time": 32.1,
+    "errors": [
+      "Undefined variables",
+      "No documentation",
+      "Poor formatting",
+      "Improvement application failed: 'LocalLLMAgent' object has no attribute 'generate_code'",
+      "Improvement application failed: 'LocalLLMAgent' object has no attribute 'generate_code'",
+      "Improvement application failed: 'LocalLLMAgent' object has no attribute 'generate_code'"
+    ],
+    "files_modified": []
+  }
+}
