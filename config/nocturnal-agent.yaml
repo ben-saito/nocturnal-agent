@@ -1,0 +1,112 @@
+# Nocturnal Agent Configuration
+# Autonomous night development system configuration file
+
+# Core project settings
+project_name: "nocturnal-agent"
+working_directory: "."
+debug_mode: false
+dry_run: false
+
+# Local LLM configuration (LM Studio)
+llm:
+  model_path: "models/codellama-13b"
+  api_url: "http://localhost:1234/v1"
+  timeout: 300  # 5 minutes
+  max_tokens: 4096
+  temperature: 0.7
+  enabled: true
+
+# External coding agents configuration
+agents:
+  claude:
+    cli_command: "claude"
+    max_retries: 3
+    timeout: 300
+    enabled: true
+    check_auth_on_startup: true
+  # Future agents will be added here
+  # github_copilot:
+  #   enabled: false
+  # openai_codex:
+  #   enabled: false
+
+# Quality assessment configuration
+quality:
+  overall_threshold: 0.85
+  consistency_threshold: 0.85
+  max_improvement_cycles: 3
+  enable_static_analysis: true
+  static_analysis_tools:
+    - "pylint"
+    - "flake8"
+    - "mypy"
+
+# Night scheduler configuration
+scheduler:
+  start_time: "22:00"  # 10:00 PM
+  end_time: "06:00"    # 6:00 AM
+  max_changes_per_night: 10
+  max_task_duration_minutes: 30
+  check_interval_seconds: 30
+  timezone: "local"
+
+# Safety and security configuration
+safety:
+  enable_backups: true
+  backup_before_execution: true
+  max_file_changes_per_task: 20
+  cpu_limit_percent: 80.0
+  memory_limit_gb: 8.0
+  dangerous_commands:
+    - "rm"
+    - "rmdir"
+    - "del"
+    - "format"
+    - "fdisk"
+    - "mkfs"
+    - "dd"
+    - "sudo rm"
+    - "sudo rmdir"
+    - "sudo del"
+  protected_paths:
+    - "/etc"
+    - "/sys"
+    - "/proc"
+    - "/dev"
+    - "/boot"
+    - "C:\\Windows"
+    - "C:\\System32"
+    - "C:\\Program Files"
+
+# Cost management configuration
+cost:
+  monthly_budget_usd: 10.0
+  local_llm_priority: true
+  free_tool_preference_percent: 90.0
+  track_api_usage: true
+  warn_at_budget_percent: 80.0
+
+# Obsidian knowledge base configuration
+obsidian:
+  vault_path: "knowledge-vault"
+  auto_create_vault: true
+  markdown_template_path: null
+  enable_frontmatter: true
+  enable_backlinks: true
+
+# Parallel execution configuration
+parallel:
+  max_parallel_branches: 5
+  high_quality_threshold: 0.85
+  medium_quality_threshold: 0.70
+  enable_experimental_branches: true
+  merge_strategy: "auto"  # auto, manual, quality_based
+
+# Logging configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "json"  # json or text
+  file_path: "logs/nocturnal-agent.log"
+  max_file_size_mb: 100
+  backup_count: 5
+  enable_structlog: true
