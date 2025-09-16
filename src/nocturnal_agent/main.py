@@ -22,26 +22,21 @@ from .design.spec_kit_integration import SpecType
 class NocturnalAgent:
     """夜間自律開発システム メインクラス"""
     
-    def __init__(self, config_path: Optional[str] = None, workspace_path: Optional[str] = None):
-        """初期化"""
-        self.config_manager = ConfigManager(config_path)
-        self.config: NocturnalConfig = self.config_manager.load_config()
+    def __init__(self, workspace_path: str):
+        """Nocturnal Agent初期化"""
+        # 設定管理システム
+        self.config_manager = ConfigurationManager()
+        self.config = self.config_manager.load_config()
         
-        # ワークスペースパスの設定
-        if workspace_path:
-            self.config.workspace_path = workspace_path
-        
-        self.workspace_path = Path(self.config.workspace_path)
+        # 基本設定
+        self.workspace_path = Path(workspace_path)
         self.session_id = None
         self.is_running = False
         
-        # コンポーネントの初期化
-        self._initialize_components()
-        
-        # システム統計
+        # セッション統計
         self.session_stats = {
-            'start_time': None,
-            'end_time': None,
+            'session_start': None,
+            'session_end': None,
             'total_tasks': 0,
             'completed_tasks': 0,
             'failed_tasks': 0,
@@ -51,10 +46,13 @@ class NocturnalAgent:
         
         # セッション設定（ユーザー指示による動的設定）
         self.session_settings = {
-            'use_spec_kit': False,  # デフォルトはSpec Kit使用しない
+            'use_spec_kit': True,  # デフォルトでSpec Kit使用する
             'spec_type': 'feature',
             'quality_threshold': self.config.minimum_quality_threshold
         }
+        
+        # コンポーネント初期化
+        self._initialize_components()
     
     def _initialize_components(self):
         """コンポーネント初期化"""
