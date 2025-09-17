@@ -1,0 +1,65 @@
+agents:
+  claude_api_key: null
+  fallback_agents:
+  - claude_code
+  max_retries: 3
+  openai_api_key: null
+  primary_agent: local_llm
+  timeout_seconds: 300
+cost_management:
+  alert_thresholds:
+  - 0.5
+  - 0.8
+  - 0.9
+  - 0.95
+  emergency_mode_threshold: 0.95
+  free_tool_target_rate: 0.9
+  free_tools:
+  - local_llm
+  - github_api
+  - file_operations
+  monthly_budget: 10.0
+  storage_path: ./data/cost_data
+data_directory: ./data
+database:
+  backup_enabled: true
+  backup_interval_hours: 24
+  path: ./data/nocturnal_agent.db
+  type: sqlite
+log_directory: ./logs
+logging:
+  console_output: true
+  file_output: true
+  format: structured
+  level: INFO
+  max_file_size_mb: 100
+  output_path: ./logs
+  retention_days: 30
+minimum_quality_threshold: 0.6
+night_end_hour: 6
+night_start_hour: 22
+parallel_execution:
+  branch_prefix: nocturnal
+  execution_timeout_seconds: 600
+  high_quality_threshold: 0.85
+  max_parallel_branches: 5
+  max_parallel_executions: 3
+  medium_quality_threshold: 0.7
+  quality_assessment_enabled: true
+project_name: Nocturnal Agent Project
+safety:
+  backup_before_execution: true
+  backup_retention_days: 7
+  danger_detection_enabled: true
+  dangerous_operations_blocked:
+  - rm -rf
+  - format
+  - del /q
+  - sudo rm
+  - DROP TABLE
+  enabled: true
+  max_rollback_points: 10
+  rollback_enabled: true
+target_quality_threshold: 0.8
+timezone: Asia/Tokyo
+workspace_path: ./
