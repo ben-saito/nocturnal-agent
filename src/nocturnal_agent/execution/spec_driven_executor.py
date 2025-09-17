@@ -81,7 +81,7 @@ class SpecDrivenExecutor:
         
         self.logger.log(
             LogLevel.INFO,
-            LogCategory.DESIGN,
+            LogCategory.SYSTEM,
             f"技術仕様生成: {task.description}",
             task_id=task.id,
             session_id=session_id,
@@ -99,7 +99,7 @@ class SpecDrivenExecutor:
         
         self.logger.log(
             LogLevel.INFO,
-            LogCategory.DESIGN,
+            LogCategory.SYSTEM,
             f"技術仕様生成完了: {spec_path}",
             task_id=task.id,
             session_id=session_id,
@@ -178,7 +178,7 @@ class SpecDrivenExecutor:
         
         self.logger.log(
             LogLevel.INFO,
-            LogCategory.DESIGN,
+            LogCategory.SYSTEM,
             f"コンポーネント設計生成: {len(components)}個",
             task_id=task.id,
             session_id=session_id,
@@ -330,7 +330,7 @@ class SpecDrivenExecutor:
         
         self.logger.log(
             LogLevel.INFO,
-            LogCategory.DESIGN,
+            LogCategory.SYSTEM,
             f"仕様検証開始: {spec.metadata.title}",
             session_id=session_id,
             extra_data={
@@ -347,7 +347,7 @@ class SpecDrivenExecutor:
             spec.metadata.status = SpecStatus.APPROVED
             self.logger.log(
                 LogLevel.INFO,
-                LogCategory.DESIGN,
+                LogCategory.SYSTEM,
                 f"仕様検証成功: 自動承認",
                 session_id=session_id
             )
@@ -355,7 +355,7 @@ class SpecDrivenExecutor:
             spec.metadata.status = SpecStatus.REVIEW
             self.logger.log(
                 LogLevel.WARNING,
-                LogCategory.DESIGN,
+                LogCategory.SYSTEM,
                 f"仕様検証警告: 手動レビューが必要",
                 session_id=session_id,
                 extra_data={'validation_issues': validation_result['issues']}
@@ -462,7 +462,7 @@ class SpecDrivenExecutor:
         
         self.logger.log(
             LogLevel.INFO,
-            LogCategory.DESIGN,
+            LogCategory.SYSTEM,
             f"実行結果による仕様更新: {spec.metadata.title}",
             session_id=session_id,
             extra_data={

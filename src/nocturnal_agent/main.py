@@ -9,6 +9,7 @@ import uuid
 
 from .config.config_manager import ConfigManager, NocturnalConfig
 from .logging.structured_logger import StructuredLogger, LogLevel, LogCategory
+from .logging.interaction_logger import InteractionLogger, InteractionType, AgentType as InteractionAgentType
 from .scheduler.night_scheduler import NightScheduler
 from .cost.cost_manager import CostManager
 from .safety.safety_coordinator import SafetyCoordinator
@@ -25,7 +26,7 @@ class NocturnalAgent:
     def __init__(self, workspace_path: str):
         """Nocturnal Agent初期化"""
         # 設定管理システム
-        self.config_manager = ConfigurationManager()
+        self.config_manager = ConfigManager()
         self.config = self.config_manager.load_config()
         
         # 基本設定
@@ -67,9 +68,15 @@ class NocturnalAgent:
         })
         
         # スケジューラー（メインエージェントの参照を渡す）
+        scheduler_config = {
+            'time_control': {},
+            'task_queue': {},
+            'resource_monitoring': {},
+            'quality_management': {}
+        }
         self.scheduler = NightScheduler(
             str(self.workspace_path), 
-            self.config,
+            scheduler_config,
             main_agent=self  # セッション設定へのアクセス用
         )
         
@@ -90,6 +97,9 @@ class NocturnalAgent:
         
         # レポートジェネレーター
         self.report_generator = ReportGenerator(self.logger)
+        
+        # 対話ログシステム
+        self.interaction_logger = InteractionLogger(str(self.workspace_path / "logs" / "interactions"))
         
         # Spec Kit駆動実行システム
         self.spec_executor = SpecDrivenExecutor(str(self.workspace_path), self.logger)
@@ -420,11 +430,24 @@ class NocturnalAgent:
     async def execute_task_with_spec_design(self, task: Task, 
                                            executor_func,
                                            spec_type: SpecType = SpecType.FEATURE) -> ExecutionResult:
-        """Spec Kit仕様駆動タスク実行"""
+        """Spec Kit仕様駆動タスク実行（対話ログ付き）"""
+        
+        # 対話ログ: 指示送信
+        self.interaction_logger.log_instruction(
+            session_id=self.session_id or "unknown",
+            task_id=task.id,
+            agent_type=InteractionAgentType.CLAUDE_CODE,
+            instruction=f"Spec Kit駆動でタスク実行: {task.description}",
+            metadata={
+                'spec_type': spec_type.value,
+                'estimated_quality': task.estimated_quality,
+                'requirements': task.requirements
+            }
+        )
         
         self.logger.log(
             LogLevel.INFO,
-            LogCategory.DESIGN,
+            LogCategory.SYSTEM,
             f"Spec Kit駆動実行開始: {task.description}",
             task_id=task.id,
             extra_data={
@@ -439,9 +462,48 @@ class NocturnalAgent:
                 task, executor_func, spec_type
             )
             
+            # 対話ログ: レスポンス受信
+            self.interaction_logger.log_response(
+                session_id=self.session_id or "unknown",
+                task_id=task.id,
+                agent_type=InteractionAgentType.CLAUDE_CODE,
+                response=f"Spec Kit駆動実行完了。生成コード: {len(result.generated_code.split())}語",
+                quality_score=result.quality_score.overall if result.quality_score else None,
+                execution_time=result.execution_time,
+                metadata={
+                    'success': result.success,
+                    'agent_used': result.agent_used.value if result.agent_used else None,
+                    'files_created': getattr(result, 'files_created', [])
+                }
+            )
+            
+            # 品質に基づく承認/拒否の判定
+            quality_threshold = 0.85
+            if result.success and (not result.quality_score or result.quality_score.overall >= quality_threshold):
+                # 承認
+                self.interaction_logger.log_approval(
+                    session_id=self.session_id or "unknown",
+                    task_id=task.id,
+                    agent_type=InteractionAgentType.CLAUDE_CODE,
+                    response=result.generated_code[:200] + "...",
+                    reason=f"品質スコア {result.quality_score.overall:.2f} が閾値 {quality_threshold} を超過",
+                    metadata={'auto_approval': True}
+                )
+            elif not result.success or (result.quality_score and result.quality_score.overall < quality_threshold):
+                # 拒否
+                rejection_reason = "実行失敗" if not result.success else f"品質スコア {result.quality_score.overall:.2f} が閾値 {quality_threshold} を下回る"
+                self.interaction_logger.log_rejection(
+                    session_id=self.session_id or "unknown",
+                    task_id=task.id,
+                    agent_type=InteractionAgentType.CLAUDE_CODE,
+                    response=result.generated_code[:200] + "..." if result.generated_code else "実行失敗",
+                    rejection_reason=rejection_reason,
+                    metadata={'auto_rejection': True}
+                )
+            
             self.logger.log(
                 LogLevel.INFO,
-                LogCategory.DESIGN,
+                LogCategory.SYSTEM,
                 f"Spec Kit駆動実行完了: 成功={result.success}",
                 task_id=task.id,
                 extra_data={
@@ -453,6 +515,16 @@ class NocturnalAgent:
             return result
             
         except Exception as e:
+            # 対話ログ: エラー
+            self.interaction_logger.log_rejection(
+                session_id=self.session_id or "unknown",
+                task_id=task.id,
+                agent_type=InteractionAgentType.CLAUDE_CODE,
+                response="実行エラー",
+                rejection_reason=f"例外発生: {str(e)}",
+                metadata={'error_type': type(e).__name__}
+            )
+            
             self.logger.log_error(
                 "spec_driven_execution_error",
                 f"Spec Kit駆動実行エラー: {e}",
