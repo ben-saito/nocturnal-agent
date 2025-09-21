@@ -1,0 +1,38 @@
+alternatives_considered: []
+design:
+  architecture: {}
+  components:
+  - dependencies: []
+    description: Component description
+    interfaces: Component interfaces
+    name: Component Name
+    type: Component type
+  data_models: []
+  interfaces: []
+  overview: Design overview
+implementation:
+  approach: Implementation approach
+  milestones: []
+  risks: []
+  testing_strategy: Testing strategy
+  timeline: {}
+metadata:
+  authors:
+  - Author Name
+  related_specs: []
+  reviewers: []
+  spec_type: design
+  status: draft
+  tags: []
+  title: Design Title
+  version: 1.0.0
+motivation: Why is this feature needed?
+references: []
+requirements:
+- acceptance_criteria: []
+  dependencies: []
+  description: Detailed requirement description
+  id: REQ-001
+  priority: medium
+  title: Requirement Title
+summary: Brief summary of the feature

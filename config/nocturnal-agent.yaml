@@ -7,12 +7,12 @@ working_directory: "."
 debug_mode: false
 dry_run: false
 
-# Local LLM configuration (LM Studio)
+# Local LLM configuration (Ollama)
 llm:
-  model_path: "models/codellama-13b"
-  api_url: "http://localhost:1234/v1"
-  timeout: 300  # 5 minutes
-  max_tokens: 4096
+  model_path: "llama3.2:3b"
+  api_url: "http://localhost:11434"
+  timeout: 600  # 10 minutes
+  max_tokens: 1024
   temperature: 0.7
   enabled: true
 

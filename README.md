@@ -1,30 +1,73 @@
-# Nocturnal Agent / 夜間自律開発システム
+# Nocturnal Agent / 分散協調開発システム
 
-🌙 **Autonomous Night Development System** - Let your code write itself while you sleep!  
-🌙 **夜間自律開発システム** - 睡眠中にコードが自動で開発されます！
+🌙 **Distributed Collaborative Development System** - Advanced autonomous development platform with multi-agent coordination!  
+🌙 **分散協調開発システム** - マルチエージェント連携による高度な自律開発プラットフォーム！
 
-Nocturnal Agent is an intelligent system that performs development tasks autonomously during nighttime hours (10 PM - 6 AM), using local LLM orchestration with multi-agent coordination for cost-effective and safe automated coding.
+Nocturnal Agent is an advanced development platform that enables distributed collaborative work among coding agents, followed by unified execution through design file specification. The system supports immediate, nightly, and scheduled execution modes with local LLM orchestration and ClaudeCode integration.
 
-Nocturnal Agentは、夜間時間帯（22:00-06:00）に開発タスクを自律的に実行するインテリジェントシステムです。ローカルLLMオーケストレーションとマルチエージェント連携により、コスト効率的で安全な自動コーディングを実現します。
+Nocturnal Agentは、複数のコーディングエージェントが分散協調作業を行い、設計ファイル指定による統合実行を可能にする高度な開発プラットフォームです。ローカルLLMオーケストレーションとClaudeCode統合により、即時・夜間・スケジュール実行モードを提供します。
 
 ## 🎯 Features / 機能
 
-- **🌙 Night Automation / 夜間自動化**: Automatic execution during 22:00-06:00 window / 22:00-06:00の時間帯での自動実行
-- **🤖 Multi-Agent Orchestration / マルチエージェント統合**: Coordinates Claude Code, GitHub Copilot, and other coding agents / Claude Code、GitHub Copilot等のコーディングエージェントを統合
-- **🧠 Local LLM Intelligence / ローカルLLM知能**: Uses LM Studio for cost-effective task planning and quality assessment / LM Studioを使用したコスト効率的なタスク計画と品質評価
-- **📊 Quality Assurance / 品質保証**: Maintains 0.85+ quality threshold with 3-cycle improvement system / 3サイクル改善システムで0.85以上の品質閾値を維持
-- **🔒 Safety First / 安全性重視**: Automatic backups, dangerous command blocking, resource limits / 自動バックアップ、危険コマンドブロック、リソース制限
-- **💡 Learning System / 学習システム**: Obsidian-based knowledge accumulation for project-specific patterns / Obsidianベースのプロジェクト固有パターン知識蓄積
-- **⚖️ Cost Control / コスト管理**: $10/month budget with 90%+ free tool preference / 月額10ドル予算で90%以上の無料ツール優先使用
-- **🔀 Parallel Execution / 並列実行**: Up to 5 concurrent branches based on quality confidence / 品質信頼度に基づく最大5並列ブランチ実行
-- **📝 GitHub Spec Kit Integration / GitHub Spec Kit統合**: Optional spec-driven development when explicitly requested / 明示的な要求時のオプションの仕様駆動開発
+### 🔄 Distributed Design Phase / 分散設計フェーズ
+- **🏗️ Template-Based Design / テンプレートベース設計**: Standardized YAML design templates for consistent collaboration / 一貫した協調作業のための標準化されたYAML設計テンプレート
+- **👥 Multi-Agent Coordination / マルチエージェント連携**: Multiple agents work independently on design files / 複数エージェントが設計ファイルを独立して作成
+- **✅ Design Validation / 設計検証**: Comprehensive validation with completion scoring / 完成度スコア付きの包括的検証
+
+### 🚀 Unified Execution Phase / 統合実行フェーズ
+- **📄 File-Driven Execution / ファイル駆動実行**: Execute projects via design file specification / 設計ファイル指定によるプロジェクト実行
+- **⚡ Flexible Execution Modes / 柔軟な実行モード**: immediate, nightly, scheduled execution options / 即時・夜間・スケジュール実行オプション
+- **🤖 Local LLM → ClaudeCode Integration / ローカルLLM → ClaudeCode統合**: Automated task execution through ClaudeCode / ClaudeCodeを通じた自動タスク実行
+
+### 📊 Advanced Task Management / 高度なタスク管理
+- **🔧 Automatic Task Breakdown / 自動タスク分割**: Design files auto-generate implementation tasks / 設計ファイルから実装タスクを自動生成
+- **📈 Progress Tracking / 進捗追跡**: Detailed task-level progress monitoring / 詳細なタスクレベル進捗監視
+- **🔄 Dependency Management / 依存関係管理**: Task dependencies and execution ordering / タスク依存関係と実行順序
+
+### 🔒 Safety & Quality / 安全性と品質
+- **🛡️ Pre-Execution Validation / 実行前検証**: Design file validation before execution / 実行前の設計ファイル検証
+- **🔍 Dry-Run Mode / ドライラン モード**: Execution plan preview without actual changes / 実際の変更なしでの実行計画プレビュー
+- **💾 Execution Logging / 実行ログ**: Comprehensive logging of all task executions / 全タスク実行の包括的ログ
+
+## 🏗️ New Architecture / 新アーキテクチャ
+
+```mermaid
+graph TB
+    subgraph "Phase 1: Distributed Design"
+        A1[Agent A] --> T1[Template]
+        A2[Agent B] --> T2[Template] 
+        A3[Agent C] --> T3[Template]
+        T1 --> D1[design_a.yaml]
+        T2 --> D2[design_b.yaml]
+        T3 --> D3[design_c.yaml]
+    end
+    
+    subgraph "Phase 2: Unified Execution"
+        D1 --> V[Design Validation]
+        D2 --> V
+        D3 --> V
+        V --> E[Execution Engine]
+        E --> M1[Immediate Mode]
+        E --> M2[Nightly Mode]
+        E --> M3[Scheduled Mode]
+    end
+    
+    subgraph "Phase 3: ClaudeCode Integration"
+        M1 --> LLM[Local LLM]
+        M2 --> LLM
+        M3 --> LLM
+        LLM --> CC[ClaudeCode]
+        CC --> TM[Task Manager]
+        TM --> R[Results & Logs]
+    end
+```
 
 ## 🚀 Quick Start / クイックスタート
 
 ### Prerequisites / 前提条件
 
 - Python 3.9+ / Python 3.9以上
-- [LM Studio](https://lmstudio.ai/) with a code model (recommended: CodeLlama 13B) / コードモデル付きLM Studio（推奨：CodeLlama 13B）
+- [LM Studio](https://lmstudio.ai/) with Qwen2.5:7b or similar model / Qwen2.5:7bまたは類似のモデル付きLM Studio
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) (authenticated) / Claude Code CLI（認証済み）
 - Git repository for development / 開発用Gitリポジトリ
 
@@ -45,190 +88,227 @@ nocturnal init
 nocturnal status
 ```
 
-### Configuration
+### Configuration / 設定
 
-Edit `config/nocturnal-agent.yaml` to customize:
+Edit `config/nocturnal-agent.yaml`:
 
 ```yaml
-# Core settings
+# Project settings / プロジェクト設定
 project_name: "your-project"
 working_directory: "/path/to/your/project"
 
-# LLM settings
+# LLM settings / LLM設定
 llm:
-  api_url: "http://localhost:1234/v1"
-  model_path: "models/codellama-13b"
+  enabled: true
+  model_path: "qwen2.5:7b"
+  api_url: "http://localhost:11434"
+  timeout: 900
+  max_tokens: 1024
+  temperature: 0.7
 
-# Night schedule
-scheduler:
-  start_time: "22:00"
-  end_time: "06:00"
-  max_changes_per_night: 10
-
-# Quality thresholds
-quality:
-  overall_threshold: 0.85
-  consistency_threshold: 0.85
+# Agent settings / エージェント設定
+agents:
+  timeout_seconds: 900
+  
+# Execution settings / 実行設定
+execution:
+  max_tasks_per_batch: 5
+  default_mode: "nightly"
 ```
-
-## 🏗️ Architecture
-
-```mermaid
-graph TB
-    A[Night Scheduler] --> B[Local LLM Agent]
-    B --> C[Task Analysis & Quality Check]
-    C --> D[Agent Selector]
-    D --> E[Claude Code]
-    D --> F[GitHub Copilot]
-    D --> G[Other Agents]
-    E --> H[Consistency Engine]
-    F --> H
-    G --> H
-    H --> I[Quality Assessment]
-    I --> J[Obsidian Knowledge Base]
-    I --> K[Git Management & Backup]
-    I --> L[Improvement Cycle]
-    L --> C
-```
-
-## 📋 Current Implementation Status
-
-- [x] 1. Project foundation and core interfaces
-  - [x] Python 3.9+ project structure (src/, tests/, config/)
-  - [x] Basic data models (Task, QualityScore, ExecutionResult, ProjectContext)
-  - [x] Configuration management system (YAML support)
-
-- [ ] 2. Local LLM Agent implementation
-- [ ] 3. CLI coding agent integration system
-- [ ] 4. Consistency engine implementation
-- [ ] 5. Obsidian integration system
-- [ ] 6. Quality improvement cycle implementation
-- [ ] 7. Night scheduler implementation
-- [ ] 8. Safety and backup system implementation
-- [ ] 9. Cost management system implementation
-- [ ] 10. Parallel execution features
-- [ ] 11. Test suite implementation
-- [ ] 12. Configuration and documentation
 
 ## 🎮 Usage / 使用方法
 
-### Adding Tasks / タスクの追加
+### 1. Create Agent Design Templates / エージェント設計テンプレート作成
 
 ```bash
-# Add a simple task / シンプルなタスクの追加
-nocturnal add-task -t "Fix bug in user authentication" -p high
+# Create workspace for Agent Alice / エージェント Alice 用ワークスペース作成
+nocturnal design create-template alice --output-dir ./team_designs
 
-# Interactive task entry / インタラクティブなタスク入力
-nocturnal add-task
+# Create workspaces for multiple agents / 複数エージェント用ワークスペース作成
+nocturnal design create-template bob --output-dir ./team_designs
+nocturnal design create-template charlie --output-dir ./team_designs
 ```
 
-### Night Execution / 夜間実行
+### 2. Agents Create Design Files / エージェントが設計ファイル作成
+
+Each agent fills out their design template:
 
 ```bash
-# Standard execution (no Spec Kit) / 標準実行（Spec Kit使用なし）
+# Copy template and customize / テンプレートをコピーしてカスタマイズ
+cd team_designs/designs/agent_alice
+cp design_template.yaml ai_news_scraper.yaml
+# Edit ai_news_scraper.yaml with project details...
+
+# Validate design / 設計検証
+nocturnal design validate ai_news_scraper.yaml --detailed
+```
+
+### 3. Execute via Design File / 設計ファイル経由で実行
+
+```bash
+# Immediate execution / 即時実行
+nocturnal execute --design-file ai_news_scraper.yaml --mode immediate --max-tasks 3
+
+# Nightly execution / 夜間実行
+nocturnal execute --design-file ai_news_scraper.yaml --mode nightly
+
+# Scheduled execution / スケジュール実行
+nocturnal execute --design-file ai_news_scraper.yaml --mode scheduled --schedule-time 22:00
+
+# Validation only / 検証のみ
+nocturnal execute --design-file ai_news_scraper.yaml --validate-only
+
+# Dry run / ドライラン
+nocturnal execute --design-file ai_news_scraper.yaml --dry-run
+```
+
+### 4. Design File Management / 設計ファイル管理
+
+```bash
+# View design summary / 設計サマリー表示
+nocturnal design summary ai_news_scraper.yaml
+
+# Convert between formats / フォーマット変換
+nocturnal design convert design.yaml design.json
+
+# Validate design files / 設計ファイル検証
+nocturnal design validate design.yaml --detailed
+```
+
+### 5. Traditional Night Execution / 従来の夜間実行
+
+```bash
+# Interactive review mode / インタラクティブレビューモード
+nocturnal review start "Implement user authentication system"
+nocturnal review from-file requirements.md
+
+# Direct execution / 直接実行
 nocturnal start
-
-# Spec Kit driven execution with feature specs / フィーチャー仕様でのSpec Kit駆動実行
-nocturnal start --use-spec-kit --spec-type feature
-
-# Spec Kit driven execution with architecture specs / アーキテクチャ仕様でのSpec Kit駆動実行
-nocturnal start --use-spec-kit --spec-type architecture
-
-# Test run (dry run) / テスト実行（ドライラン）
-nocturnal night-run --dry-run
-
-# Actual night execution (normally runs automatically) / 実際の夜間実行（通常は自動実行）
-nocturnal night-run
 ```
 
-### GitHub Spec Kit Management / GitHub Spec Kit管理
+## 📋 Implementation Status / 実装状況
 
-```bash
-# Create a new specification / 新しい仕様の作成
-nocturnal spec create --type feature --title "User Authentication System"
+### ✅ Completed Features / 完了機能
 
-# List all specifications / すべての仕様の一覧表示
-nocturnal spec list
+- [x] **Distributed Design System / 分散設計システム**
+  - [x] YAML design templates / YAML設計テンプレート
+  - [x] Template generation for agents / エージェント用テンプレート生成
+  - [x] Design validation with scoring / スコア付き設計検証
+  - [x] Automatic task breakdown / 自動タスク分割
 
-# View a specific specification / 特定の仕様の表示
-nocturnal spec show <spec-file>
+- [x] **Unified Execution Engine / 統合実行エンジン**
+  - [x] File-driven execution system / ファイル駆動実行システム
+  - [x] Multiple execution modes (immediate/nightly/scheduled) / 複数実行モード
+  - [x] Dry-run and validation modes / ドライラン・検証モード
 
-# Validate specifications / 仕様の検証
-nocturnal spec validate <spec-file>
-```
+- [x] **ClaudeCode Integration / ClaudeCode統合**
+  - [x] Local LLM → ClaudeCode workflow / ローカルLLM → ClaudeCodeワークフロー
+  - [x] Task-specific instruction generation / タスク固有指示生成
+  - [x] Execution result management / 実行結果管理
 
-### Monitoring / モニタリング
+- [x] **Task Management System / タスク管理システム**
+  - [x] Implementation task management / 実装タスク管理
+  - [x] Task dependency tracking / タスク依存関係追跡
+  - [x] Progress monitoring and reporting / 進捗監視・レポート
 
-```bash
-# Check system status / システム状態の確認
-nocturnal status
+- [x] **Enhanced CLI Interface / 拡張CLIインターフェース**
+  - [x] `execute` command with flexible options / 柔軟なオプション付き`execute`コマンド
+  - [x] `design` command suite / `design`コマンド群
+  - [x] Interactive review system / インタラクティブレビューシステム
 
-# Validate configuration / 設定の検証
-nocturnal config-check
+### 🚧 Legacy Features (Maintained) / レガシー機能（維持）
 
-# View execution logs / 実行ログの表示
-tail -f logs/nocturnal-agent.log
-```
+- [x] Night scheduler / 夜間スケジューラ
+- [x] Quality assurance system / 品質保証システム
+- [x] Safety mechanisms / 安全機構
+- [x] Cost management / コスト管理
+- [x] Obsidian knowledge integration / Obsidianナレッジ統合
 
-## 🔧 Development
-
-### Setting up Development Environment
-
-```bash
-# Install development dependencies
-pip install -e ".[dev]"
-
-# Install pre-commit hooks
-pre-commit install
-
-# Run tests
-pytest
-
-# Type checking
-mypy src/
-
-# Code formatting
-black src/ tests/
-isort src/ tests/
-```
-
-### Project Structure
+## 🔧 Project Structure / プロジェクト構造
 
 ```
 nocturnal-agent/
-├── src/nocturnal_agent/           # Main source code
-│   ├── core/                      # Core models and interfaces
-│   ├── agents/                    # Agent implementations
-│   ├── engines/                   # Consistency and quality engines
-│   ├── managers/                  # System managers
-│   ├── schedulers/                # Night scheduler
-│   ├── safety/                    # Safety mechanisms
-│   └── utils/                     # Utilities
-├── tests/                         # Test suite
-│   ├── unit/                      # Unit tests
-│   ├── integration/               # Integration tests
-│   └── e2e/                       # End-to-end tests
-├── config/                        # Configuration files
-├── docs/                          # Documentation
-└── knowledge-vault/               # Obsidian knowledge base
+├── templates/                          # Design templates / 設計テンプレート
+│   └── design_template.yaml           # Master design template / マスター設計テンプレート
+├── src/nocturnal_agent/
+│   ├── design/                         # Design file management / 設計ファイル管理
+│   │   └── design_file_manager.py
+│   ├── execution/                      # Execution engines / 実行エンジン
+│   │   ├── spec_driven_executor.py
+│   │   └── implementation_task_manager.py
+│   ├── log_system/                     # Logging system / ログシステム
+│   │   └── structured_logger.py
+│   ├── cli/                           # Command line interface / コマンドラインインターフェース
+│   │   └── main.py
+│   ├── core/                          # Core models / コアモデル
+│   ├── scheduler/                     # Night scheduler / 夜間スケジューラ
+│   └── reporting/                     # Reporting system / レポートシステム
+├── config/                            # Configuration files / 設定ファイル
+├── docs/                              # Documentation / ドキュメント
+├── knowledge-vault/                   # Obsidian knowledge base / Obsidianナレッジベース
+└── tests/                             # Test suite / テストスイート
+```
+
+## 📊 Design Template Structure / 設計テンプレート構造
+
+The YAML design template includes comprehensive sections:
+
+```yaml
+project_info:          # Basic project information / 基本プロジェクト情報
+requirements:          # Functional & non-functional requirements / 機能・非機能要件
+architecture:          # System architecture design / システムアーキテクチャ設計
+technology_stack:      # Technology choices / 技術選択
+implementation_plan:   # Development phases and priorities / 開発フェーズと優先度
+task_breakdown:        # Task generation settings / タスク生成設定
+quality_requirements:  # Quality standards / 品質基準
+execution_config:      # Execution preferences / 実行設定
+metadata:             # Template metadata / テンプレートメタデータ
+```
+
+## 🔄 Workflow Comparison / ワークフロー比較
+
+### Traditional Workflow / 従来ワークフロー
+```
+Request → na → Design Generation → Immediate Implementation → Complete
+         (Black Box)              (Limited Control)
+```
+
+### New Distributed Workflow / 新分散ワークフロー
+```
+Request → Template → Design Creation → Validation → File-Specified Execution
+         (Standard)  (Reviewable)     (Quality Gate) (Flexible Control)
+                                                    ↓
+                                        [immediate|nightly|scheduled]
+                                                    ↓
+                                         Local LLM → ClaudeCode → Complete
+                                                    ↓
+                                         Detailed Progress Tracking
 ```
 
 ## ⚠️ Safety Features / 安全機能
 
-- **Automatic Backups / 自動バックアップ**: Full repository backup before night execution / 夜間実行前の完全リポジトリバックアップ
-- **Resource Limits / リソース制限**: CPU 80%, Memory 8GB limits / CPU 80%、メモリ8GB制限
-- **Dangerous Command Blocking / 危険コマンドブロック**: Prevents destructive operations / 破壊的操作の防止
-- **File Change Limits / ファイル変更制限**: Maximum 20 file changes per task / タスクあたり最大20ファイル変更
-- **Git Branch Isolation / Gitブランチ分離**: All work done in dedicated branches / 専用ブランチでの全作業実行
-- **Quality Gates / 品質ゲート**: 0.85+ quality threshold for automatic application / 自動適用のための0.85以上の品質閾値
+- **Design Validation / 設計検証**: Comprehensive validation before execution / 実行前の包括的検証
+- **Dry-Run Mode / ドライランモード**: Preview execution plan without changes / 変更なしでの実行計画プレビュー
+- **Task-Level Control / タスクレベル制御**: Fine-grained execution control / きめ細かい実行制御
+- **Execution Logging / 実行ログ**: Complete audit trail of all operations / 全操作の完全監査証跡
+- **Resource Management / リソース管理**: Batch size and timeout controls / バッチサイズとタイムアウト制御
 
 ## 🤝 Contributing / 貢献
 
-1. Fork the repository / リポジトリをフォーク
-2. Create a feature branch / フィーチャーブランチを作成 (`git checkout -b feature/amazing-feature`)
-3. Commit your changes / 変更をコミット (`git commit -m 'Add amazing feature'`)
-4. Push to the branch / ブランチにプッシュ (`git push origin feature/amazing-feature`)
-5. Open a Pull Request / プルリクエストを開く
+The new architecture enables better collaboration:
+
+1. **Design Phase**: Create design files using templates / テンプレートを使用した設計ファイル作成
+2. **Review Phase**: Validate and refine designs / 設計の検証と改善
+3. **Implementation Phase**: Execute via nocturnal-agent / nocturnal-agent経由で実行
+4. **Monitoring Phase**: Track progress and results / 進捗と結果の追跡
+
+## 🆕 Migration from Legacy / レガシーからの移行
+
+Existing nocturnal-agent users can:
+
+1. Continue using traditional `nocturnal start` commands / 従来の`nocturnal start`コマンドを継続使用
+2. Gradually adopt design-file based workflow / 設計ファイルベースワークフローを段階的に導入
+3. Benefit from enhanced task management / 拡張されたタスク管理の恩恵を受ける
 
 ## 📜 License / ライセンス
 
@@ -237,7 +317,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments / 謝辞
 
-- [LM Studio](https://lmstudio.ai/) for local LLM infrastructure / ローカルLLMインフラストラクチャの提供
+- [LM Studio](https://lmstudio.ai/) / [Ollama](https://ollama.ai/) for local LLM infrastructure / ローカルLLMインフラストラクチャの提供
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) for intelligent coding assistance / インテリジェントコーディング支援
-- [Obsidian](https://obsidian.md/) for knowledge management inspiration / ナレッジマネジメントのインスピレーション
-- [GitHub Spec Kit](https://github.com/github/spec-kit) for structured technical specifications / 構造化技術仕様の提供
+- [Obsidian](https://obsidian.md/) for knowledge management integration / ナレッジマネジメント統合
+- Open source community for distributed development inspiration / 分散開発のインスピレーションを提供するオープンソースコミュニティ

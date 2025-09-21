@@ -5,7 +5,14 @@ agents:
   max_retries: 3
   openai_api_key: null
   primary_agent: local_llm
-  timeout_seconds: 300
+  timeout_seconds: 900
+llm:
+  enabled: true
+  model_path: "qwen2.5:7b"
+  api_url: "http://localhost:11434"
+  timeout: 900
+  max_tokens: 1024
+  temperature: 0.7
 cost_management:
   alert_thresholds:
   - 0.5
@@ -36,8 +43,8 @@ logging:
   output_path: ./logs
   retention_days: 30
 minimum_quality_threshold: 0.6
-night_end_hour: 6
-night_start_hour: 22
+night_end_hour: 21
+night_start_hour: 20
 parallel_execution:
   branch_prefix: nocturnal
   execution_timeout_seconds: 600

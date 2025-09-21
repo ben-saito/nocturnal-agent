@@ -1,0 +1,201 @@
+#!/usr/bin/env python3
+"""
+Nocturnal Agent - Global Command Line Interface
+外部から実行可能なグローバルCLI
+"""
+
+import sys
+import os
+import subprocess
+from pathlib import Path
+from datetime import datetime
+
+def find_nocturnal_project():
+    """Nocturnal Agentプロジェクトディレクトリを検索"""
+    current = Path.cwd()
+    
+    # 現在のディレクトリから上に向かって検索
+    for path in [current] + list(current.parents):
+        if (path / 'nocturnal_simple.py').exists():
+            return path
+        if (path / 'run_nocturnal_task.py').exists():
+            return path
+        if (path / 'pyproject.toml').exists() and 'nocturnal-agent' in (path / 'pyproject.toml').read_text():
+            return path
+    
+    return None
+
+def run_command(project_dir, args):
+    """プロジェクトディレクトリでコマンドを実行"""
+    # 高品質Nocturnal Agentシステムのパス
+    nocturnal_agent_home = Path("/Users/tsutomusaito/git/nocturnal-agent")
+    
+    if len(args) == 0:
+        # ヘルプを表示
+        subprocess.run([sys.executable, str(nocturnal_agent_home / 'nocturnal_simple.py'), '--help'])
+        return
+    
+    command = args[0]
+    
+    if command in ['add-task', 'list', 'help']:
+        # タスク管理コマンド - ローカルプロジェクトのnocturnal_simple.pyを使用
+        os.chdir(project_dir)
+        subprocess.run([sys.executable, 'nocturnal_simple.py'] + args)
+    
+    elif command == 'run':
+        # タスク実行コマンド - 常に高品質システムを使用
+        print("🔥 高品質Nocturnal Agentシステムでタスクを実行します...")
+        
+        # ローカルプロジェクトのタスクを高品質システムにコピー
+        local_tasks_file = project_dir / 'nocturnal_tasks' / 'tasks.json'
+        agent_tasks_file = nocturnal_agent_home / 'nocturnal_tasks' / 'tasks.json'
+        
+        if local_tasks_file.exists():
+            import shutil
+            # バックアップを作成
+            if agent_tasks_file.exists():
+                backup_file = nocturnal_agent_home / 'nocturnal_tasks' / f'tasks_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+                shutil.copy2(agent_tasks_file, backup_file)
+                print(f"📋 既存タスクをバックアップ: {backup_file.name}")
+            
+            # ローカルタスクを高品質システムにコピー
+            shutil.copy2(local_tasks_file, agent_tasks_file)
+            print(f"📂 タスクを高品質システムにコピー完了")
+        
+        # 高品質システムで実行
+        os.chdir(nocturnal_agent_home)
+        result = subprocess.run([sys.executable, 'run_nocturnal_task.py'])
+        
+        # 実行後、結果をローカルプロジェクトにコピーバック
+        if agent_tasks_file.exists():
+            shutil.copy2(agent_tasks_file, local_tasks_file)
+            print("📋 実行結果をローカルプロジェクトに反映")
+        
+        # 生成されたファイルもコピー
+        agent_output_dir = nocturnal_agent_home / 'nocturnal_output'
+        local_output_dir = project_dir / 'nocturnal_output'
+        local_output_dir.mkdir(exist_ok=True)
+        
+        if agent_output_dir.exists():
+            # 最新の生成ファイルをコピー
+            for file in agent_output_dir.glob('*'):
+                if file.is_file():
+                    shutil.copy2(file, local_output_dir / file.name)
+            print(f"📁 生成ファイルをローカルプロジェクトにコピー完了")
+        
+        print("✨ 高品質Nocturnal Agentシステムでの実行完了！")
+        return result
+    
+    elif command == 'status':
+        # プロジェクト状態確認
+        print("📊 Nocturnal Agent ステータス")
+        print(f"📁 プロジェクトディレクトリ: {project_dir}")
+        
+        # タスクファイルの確認
+        tasks_file = project_dir / 'nocturnal_tasks' / 'tasks.json'
+        if tasks_file.exists():
+            print("✅ タスクファイル: 存在")
+            subprocess.run([sys.executable, 'nocturnal_simple.py', 'list'])
+        else:
+            print("📋 タスクファイル: なし")
+        
+        # 出力ディレクトリの確認
+        output_dir = project_dir / 'nocturnal_output'
+        if output_dir.exists():
+            files = list(output_dir.glob('*'))
+            print(f"📤 出力ファイル: {len(files)}個")
+        else:
+            print("📤 出力ファイル: なし")
+    
+    elif command == 'init':
+        # プロジェクト初期化
+        print("🌙 Nocturnal Agent プロジェクトを初期化中...")
+        
+        # 必要なディレクトリを作成
+        (project_dir / 'nocturnal_tasks').mkdir(exist_ok=True)
+        (project_dir / 'nocturnal_output').mkdir(exist_ok=True)
+        (project_dir / 'logs').mkdir(exist_ok=True)
+        
+        # 設定ファイルの作成
+        config_dir = project_dir / 'config'
+        config_dir.mkdir(exist_ok=True)
+        
+        print("✅ プロジェクト初期化完了")
+        print("💡 使用方法:")
+        print("   nocturnal-agent add-task -t 'タスク内容' -p high")
+        print("   nocturnal-agent run")
+    
+    else:
+        print(f"❌ 不明なコマンド: {command}")
+        print("💡 利用可能なコマンド:")
+        print("   nocturnal-agent add-task -t 'タスク内容' -p high")
+        print("   nocturnal-agent list")
+        print("   nocturnal-agent run")
+        print("   nocturnal-agent status")
+        print("   nocturnal-agent init")
+
+def main():
+    """メイン関数"""
+    args = sys.argv[1:]
+    
+    # initコマンドの場合は特別処理
+    if len(args) > 0 and args[0] == 'init':
+        current_dir = Path.cwd()
+        print(f"🌙 Nocturnal Agent [{current_dir.name}]")
+        print("🌙 Nocturnal Agent プロジェクトを初期化中...")
+        
+        # 必要なディレクトリを作成
+        (current_dir / 'nocturnal_tasks').mkdir(exist_ok=True)
+        (current_dir / 'nocturnal_output').mkdir(exist_ok=True)
+        (current_dir / 'logs').mkdir(exist_ok=True)
+        
+        # 設定ディレクトリの作成
+        config_dir = current_dir / 'config'
+        config_dir.mkdir(exist_ok=True)
+        
+        # 高品質Nocturnal Agentシステムから必要ファイルをコピー
+        nocturnal_agent_dir = Path("/Users/tsutomusaito/git/nocturnal-agent")
+        
+        # nocturnal_simple.pyのコピーを作成
+        original_script = nocturnal_agent_dir / 'nocturnal_simple.py'
+        target_script = current_dir / 'nocturnal_simple.py'
+        
+        if original_script.exists():
+            import shutil
+            shutil.copy2(original_script, target_script)
+            print(f"✅ nocturnal_simple.py をコピーしました")
+        else:
+            print(f"⚠️ 高品質システムが見つかりません: {original_script}")
+        
+        print(f"🔥 高品質Nocturnal Agentシステムへの参照を設定しました")
+        print(f"📍 システムパス: {nocturnal_agent_dir}")
+        
+        print("✅ プロジェクト初期化完了")
+        print("💡 使用方法:")
+        print("   nocturnal-agent add-task -t 'タスク内容' -p high")
+        print("   nocturnal-agent run")
+        return
+    
+    # プロジェクトディレクトリを検索
+    project_dir = find_nocturnal_project()
+    
+    if not project_dir:
+        print("❌ Nocturnal Agentプロジェクトが見つかりません")
+        print("💡 以下のいずれかを実行してください:")
+        print("   1. Nocturnal Agentプロジェクトディレクトリに移動")
+        print("   2. nocturnal-agent init でプロジェクトを初期化")
+        sys.exit(1)
+    
+    print(f"🌙 Nocturnal Agent [{project_dir.name}]")
+    
+    try:
+        run_command(project_dir, args)
+    except KeyboardInterrupt:
+        print("\n⚠️ 処理が中断されました")
+        sys.exit(1)
+    except Exception as e:
+        print(f"❌ エラーが発生しました: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

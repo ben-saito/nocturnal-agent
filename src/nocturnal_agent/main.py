@@ -8,8 +8,8 @@ from typing import Optional, Dict, Any
 import uuid
 
 from .config.config_manager import ConfigManager, NocturnalConfig
-from .logging.structured_logger import StructuredLogger, LogLevel, LogCategory
-from .logging.interaction_logger import InteractionLogger, InteractionType, AgentType as InteractionAgentType
+from .log_system.structured_logger import StructuredLogger, LogLevel, LogCategory
+from .log_system.interaction_logger import InteractionLogger, InteractionType, AgentType as InteractionAgentType
 from .scheduler.night_scheduler import NightScheduler
 from .cost.cost_manager import CostManager
 from .safety.safety_coordinator import SafetyCoordinator

@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""
+Nocturnal Agent - Short Command (na)
+新しいCLIシステムの短縮版コマンド
+"""
+
+import sys
+import os
+import subprocess
+from pathlib import Path
+
+# Nocturnal Agentプロジェクトのパス
+nocturnal_agent_home = Path("/Users/tsutomusaito/git/nocturnal-agent")
+
+# PYTHONPATHを設定してnew CLIを実行
+env = os.environ.copy()
+env['PYTHONPATH'] = str(nocturnal_agent_home / 'src')
+
+# 新しいCLIシステムを実行
+cmd = [sys.executable, '-m', 'nocturnal_agent.cli.main'] + sys.argv[1:]
+subprocess.run(cmd, env=env, cwd=os.getcwd())

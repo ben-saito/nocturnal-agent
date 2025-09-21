@@ -608,12 +608,7 @@ class TaskSpecTranslator:
             constraints=constraints,
             priority=task_priority,
             estimated_quality=quality_target,
-            minimum_quality_threshold=quality_threshold,
-            context={
-                'spec_file': 'generated_from_spec',
-                'spec_type': spec.metadata.spec_type.value,
-                'spec_version': spec.metadata.version
-            }
+            minimum_quality_threshold=quality_threshold
         )
         
         return task

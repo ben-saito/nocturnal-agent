@@ -1,0 +1,24 @@
+# プロジェクト要件定義
+title: "Webアプリケーション開発"
+description: "モダンなWebアプリケーションの開発"
+priority: "high"
+
+requirements:
+  - "ユーザー認証機能"
+  - "レスポンシブデザイン"
+  - "RESTful API"
+  - "データベース連携"
+
+technical_specs:
+  backend: "Python Flask"
+  frontend: "HTML/CSS/JavaScript"
+  database: "SQLite"
+  
+constraints:
+  - "開発期間: 2週間"
+  - "予算: 制限あり"
+  
+acceptance_criteria:
+  - "ユーザーログインが正常に動作する"
+  - "モバイル端末で適切に表示される"
+  - "API応答時間が2秒以内"

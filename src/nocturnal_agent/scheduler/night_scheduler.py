@@ -20,26 +20,35 @@ logger = logging.getLogger(__name__)
 class NightScheduler:
     """Main coordinator for night-time autonomous development."""
     
-    def __init__(self, project_path: str, config: Dict[str, Any], main_agent=None):
+    def __init__(self, project_path: str, config, main_agent=None):
         """Initialize night scheduler.
         
         Args:
             project_path: Path to the project directory
-            config: Scheduler configuration
+            config: Scheduler configuration (NocturnalConfig object or dict)
             main_agent: Reference to main NocturnalAgent for session settings
         """
         self.project_path = Path(project_path)
         self.config = config
         self.main_agent = main_agent  # セッション設定へのアクセス用
         
-        # Initialize components
-        self.time_controller = TimeController(config.get('time_control', {}))
-        self.task_queue = TaskQueue(str(self.project_path), config.get('task_queue', {}))
-        self.resource_monitor = ResourceMonitor(config.get('resource_monitoring', {}))
-        self.quality_manager = QualityManager(str(self.project_path), config.get('quality_management', {}))
+        # NocturnalConfigオブジェクトを辞書的にアクセスできるように変換
+        def safe_get(obj, key, default=None):
+            if hasattr(obj, key):
+                return getattr(obj, key)
+            elif hasattr(obj, 'get'):
+                return obj.get(key, default)
+            else:
+                return default
+        
+        # Initialize components with safe config access
+        self.time_controller = TimeController(safe_get(config, 'time_control', {}))
+        self.task_queue = TaskQueue(str(self.project_path), safe_get(config, 'task_queue', {}))
+        self.resource_monitor = ResourceMonitor(safe_get(config, 'resource_monitoring', {}))
+        self.quality_manager = QualityManager(str(self.project_path), safe_get(config, 'quality_management', {}))
         
         # Execution agents (disabled for testing)
-        self.claude_agent = None  # ClaudeAgent(config.get('claude', {}))
+        self.claude_agent = None  # ClaudeAgent(safe_get(config, 'claude', {}))
         
         # Scheduler state
         self.is_running = False

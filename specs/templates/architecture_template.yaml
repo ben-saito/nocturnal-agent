@@ -1,0 +1,38 @@
+alternatives_considered: []
+design:
+  architecture:
+    patterns: Design patterns used
+    scalability: Scalability considerations
+    security: Security considerations
+    style: Architectural style (e.g., microservices, layered)
+    technologies: Key technologies
+  components: []
+  data_models: []
+  interfaces: []
+  overview: Design overview
+implementation:
+  approach: Implementation approach
+  milestones: []
+  risks: []
+  testing_strategy: Testing strategy
+  timeline: {}
+metadata:
+  authors:
+  - Author Name
+  related_specs: []
+  reviewers: []
+  spec_type: architecture
+  status: draft
+  tags: []
+  title: Architecture Title
+  version: 1.0.0
+motivation: Why is this feature needed?
+references: []
+requirements:
+- acceptance_criteria: []
+  dependencies: []
+  description: Detailed requirement description
+  id: REQ-001
+  priority: medium
+  title: Requirement Title
+summary: Brief summary of the feature

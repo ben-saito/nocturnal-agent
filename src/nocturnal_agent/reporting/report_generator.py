@@ -14,7 +14,7 @@ import pandas as pd
 from io import BytesIO
 import base64
 
-from ..logging.structured_logger import StructuredLogger, LogAnalyzer
+from ..log_system.structured_logger import StructuredLogger, LogAnalyzer
 from ..core.models import QualityScore
 
 

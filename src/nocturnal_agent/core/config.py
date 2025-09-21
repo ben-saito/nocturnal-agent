@@ -5,15 +5,17 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, validator
 
 
 class LLMConfig(BaseModel):
     """Configuration for Local LLM."""
-    model_path: str = "models/codellama-13b"
-    api_url: str = "http://localhost:1234/v1"
-    timeout: int = 300  # 5 minutes
-    max_tokens: int = 4096
+    model_config = ConfigDict(protected_namespaces=())
+    
+    model_path: str = "qwen2.5:7b"  # GPT-OSS 高性能モデルに変更
+    api_url: str = "http://localhost:11434"
+    timeout: int = 600  # 10分に延長（複雑なプロンプト対応）
+    max_tokens: int = 1024  # タイムアウト対策で軽量化
     temperature: float = 0.7
     enabled: bool = True
 
