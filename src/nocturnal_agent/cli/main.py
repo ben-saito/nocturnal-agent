@@ -128,8 +128,14 @@ class NocturnalAgentCLI:
         # execute コマンド (新機能: 設計ファイルベース実行)
         self._add_execute_parser(subparsers)
         
+        # progress コマンド (新機能: 進捗状況確認)
+        self._add_progress_parser(subparsers)
+        
         # design コマンド (新機能: 設計ファイル管理)
         self._add_design_parser(subparsers)
+        
+        # natural コマンド (新機能: 自然言語要件処理)
+        self._add_natural_parser(subparsers)
         
         return parser
     
@@ -523,6 +529,40 @@ class NocturnalAgentCLI:
         
         execute_parser.set_defaults(func=self._execute_command)
 
+    
+    def _add_progress_parser(self, subparsers):
+        """progress コマンドのパーサーを追加（進捗状況確認）"""
+        progress_parser = subparsers.add_parser(
+            'progress', 
+            help='実行中タスクの進捗状況を確認',
+            description='現在実行中のタスクや完了済みタスクの進捗状況を表示します'
+        )
+        
+        progress_parser.add_argument(
+            '--design-file', '-d',
+            help='特定の設計ファイルの進捗を確認（省略時は実行中の全プロジェクト）'
+        )
+        
+        progress_parser.add_argument(
+            '--workspace', '-w',
+            help='ワークスペースパスを指定'
+        )
+        
+        progress_parser.add_argument(
+            '--detailed', 
+            action='store_true',
+            help='詳細な進捗情報を表示'
+        )
+        
+        progress_parser.add_argument(
+            '--refresh',
+            type=int,
+            default=0,
+            help='指定秒数ごとに自動更新（0で無効、推奨値: 30）'
+        )
+        
+        progress_parser.set_defaults(func=self._progress_command)
+
     def _add_design_parser(self, subparsers):
         """design コマンドのパーサーを追加（設計ファイル管理）"""
         design_parser = subparsers.add_parser(
@@ -598,6 +638,91 @@ class NocturnalAgentCLI:
             help='出力形式（未指定時は拡張子から判定）'
         )
         convert_parser.set_defaults(func=self._design_convert_command)
+
+    def _add_natural_parser(self, subparsers):
+        """natural コマンドのパーサーを追加（自然言語要件処理）"""
+        natural_parser = subparsers.add_parser(
+            'natural',
+            help='自然言語要件から設計ファイルを生成',
+            description='自然言語で書かれた要件を解析し、各エージェント用の設計ファイルを自動生成します'
+        )
+        
+        natural_subparsers = natural_parser.add_subparsers(
+            dest='natural_action',
+            help='自然言語処理アクション'
+        )
+        
+        # generate サブコマンド
+        generate_parser = natural_subparsers.add_parser(
+            'generate',
+            help='自然言語要件から設計ファイルを生成'
+        )
+        generate_parser.add_argument(
+            'requirements',
+            help='要件の説明（引用符で囲んでください）'
+        )
+        generate_parser.add_argument(
+            '--project-name', '-n',
+            default='Generated Project',
+            help='プロジェクト名（default: Generated Project）'
+        )
+        generate_parser.add_argument(
+            '--workspace', '-w',
+            default='.',
+            help='ワークスペースディレクトリ（default: 現在のディレクトリ）'
+        )
+        generate_parser.add_argument(
+            '--execute',
+            action='store_true',
+            help='生成後、即座に実行を開始'
+        )
+        generate_parser.add_argument(
+            '--dry-run',
+            action='store_true',
+            help='ファイル生成せず、解析結果のみ表示'
+        )
+        generate_parser.set_defaults(func=self._natural_generate_command)
+        
+        # analyze サブコマンド
+        analyze_parser = natural_subparsers.add_parser(
+            'analyze',
+            help='自然言語要件を解析（設計ファイル生成なし）'
+        )
+        analyze_parser.add_argument(
+            'requirements',
+            help='要件の説明（引用符で囲んでください）'
+        )
+        analyze_parser.add_argument(
+            '--detailed',
+            action='store_true',
+            help='詳細な解析結果を表示'
+        )
+        analyze_parser.set_defaults(func=self._natural_analyze_command)
+        
+        # from-file サブコマンド
+        from_file_parser = natural_subparsers.add_parser(
+            'from-file',
+            help='ファイルから要件を読み込んで処理'
+        )
+        from_file_parser.add_argument(
+            'requirements_file',
+            help='要件が書かれたファイルのパス'
+        )
+        from_file_parser.add_argument(
+            '--project-name', '-n',
+            help='プロジェクト名（未指定時はファイル名から推定）'
+        )
+        from_file_parser.add_argument(
+            '--workspace', '-w',
+            default='.',
+            help='ワークスペースディレクトリ（default: 現在のディレクトリ）'
+        )
+        from_file_parser.add_argument(
+            '--execute',
+            action='store_true',
+            help='生成後、即座に実行を開始'
+        )
+        from_file_parser.set_defaults(func=self._natural_from_file_command)
     
     def _initialize_config(self, config_path: Optional[str] = None):
         """設定初期化"""
@@ -1012,7 +1137,11 @@ class NocturnalAgentCLI:
             workspace_path / 'config',
             workspace_path / 'data',
             workspace_path / 'logs',
-            workspace_path / 'reports'
+            workspace_path / 'reports',
+            workspace_path / 'team_designs',
+            workspace_path / 'src',
+            workspace_path / 'tests',
+            workspace_path / 'docs'
         ]
         
         for directory in directories:
@@ -1020,21 +1149,18 @@ class NocturnalAgentCLI:
             print(f"📁 ディレクトリ作成: {directory}")
         
         # 設定ファイル作成
-        config_path = workspace_path / 'config' / 'nocturnal_config.yaml'
-        config_manager = ConfigManager(str(config_path))
+        config_path = workspace_path / 'config' / 'nocturnal-agent.yaml'
         
-        from nocturnal_agent.config.config_manager import NocturnalConfig
-        project_config = NocturnalConfig(
-            project_name=args.project_name,
-            workspace_path=str(workspace_path),
-            data_directory=str(workspace_path / 'data'),
-            log_directory=str(workspace_path / 'logs')
-        )
+        # プロジェクト固有の詳細設定ファイル
+        config_content = self._generate_project_config(args.project_name, workspace_path)
         
-        success = config_manager.save_config(project_config)
+        with open(config_path, 'w', encoding='utf-8') as f:
+            f.write(config_content)
         
-        if success:
-            print(f"⚙️ 設定ファイル作成: {config_path}")
+        print(f"⚙️ 設定ファイル作成: {config_path}")
+        
+        # チーム設計協調環境セットアップ
+        self._setup_team_design_environment(workspace_path)
         
         # README作成
         readme_path = workspace_path / 'README.md'
@@ -1050,13 +1176,13 @@ Nocturnal Agent 夜間自律開発プロジェクト
 
 ```bash
 # 夜間実行開始
-nocturnal start --config {config_path}
+nocturnal --config {config_path} start
 
 # システム状況確認
-nocturnal status --config {config_path}
+nocturnal --config {config_path} status
 
 # レポート生成
-nocturnal report daily --config {config_path}
+nocturnal --config {config_path} report daily
 ```
 
 ### ディレクトリ構造
@@ -1075,14 +1201,110 @@ nocturnal report daily --config {config_path}
 詳細は Nocturnal Agent のドキュメントを参照してください。
 """
         
+        # README内容の更新
+        readme_content = f"""# {args.project_name}
+
+🌙 **Nocturnal Agent 分散協調開発プロジェクト**
+
+## ✅ セットアップ完了
+
+このプロジェクトは Nocturnal Agent によって自動初期化され、チーム設計協調環境が構築されました。
+
+## 🏗️ プロジェクト構造
+
+```
+{args.project_name}/
+├── team_designs/           # チーム設計協調ワークスペース
+│   ├── designs/
+│   │   ├── agent_frontend_specialist/
+│   │   ├── agent_backend_specialist/
+│   │   ├── agent_database_specialist/
+│   │   └── agent_qa_specialist/
+│   └── TEAM_COLLABORATION_GUIDE.md
+├── config/
+│   └── nocturnal-agent.yaml  # プロジェクト設定
+├── src/                    # 実装コード
+├── tests/                  # テストスイート
+├── docs/                   # ドキュメント
+├── data/                   # データファイル
+├── logs/                   # 実行ログ
+└── reports/                # 生成レポート
+```
+
+## 🚀 クイックスタート
+
+### 1. チーム設計協調
+```bash
+# Frontend specialist が設計書作成
+cd team_designs/designs/agent_frontend_specialist
+cp design_template.yaml web_ui_system.yaml
+# Edit web_ui_system.yaml...
+
+# Backend specialist が設計書作成
+cd ../agent_backend_specialist
+cp design_template.yaml api_backend_system.yaml
+# Edit api_backend_system.yaml...
+```
+
+### 2. 設計検証
+```bash
+# 設計ファイル検証
+nocturnal design validate web_ui_system.yaml --detailed
+nocturnal design validate api_backend_system.yaml --detailed
+```
+
+### 3. 実行
+```bash
+# 即時実行
+nocturnal execute --design-file api_backend_system.yaml --mode immediate --max-tasks 3
+
+# 夜間実行
+nocturnal execute --design-file web_ui_system.yaml --mode nightly
+```
+
+## 🎮 基本コマンド
+
+```bash
+# システム状況確認
+nocturnal status
+
+# 設計ファイル管理
+nocturnal design validate design.yaml --detailed
+nocturnal design summary design.yaml
+
+# 実行
+nocturnal execute --design-file design.yaml --mode immediate
+nocturnal execute --design-file design.yaml --dry-run  # プレビュー
+
+# レポート生成
+nocturnal report daily
+```
+
+## 📚 次のステップ
+
+1. **設定カスタマイズ**: `config/nocturnal-agent.yaml` を編集
+2. **LLM環境準備**: LM Studio/Ollama の起動と設定
+3. **Claude Code**: Claude Code CLI の認証
+4. **チーム協調開始**: `team_designs/TEAM_COLLABORATION_GUIDE.md` を参照
+
+## 🔗 参考情報
+
+- チーム協調ガイド: `team_designs/TEAM_COLLABORATION_GUIDE.md`
+- 設定ファイル: `config/nocturnal-agent.yaml`
+- Nocturnal Agent ドキュメント: [GitHub Repository]
+
+---
+🌙 **Happy Collaborative Development with Nocturnal Agent!**
+"""
+        
         with open(readme_path, 'w', encoding='utf-8') as f:
             f.write(readme_content)
-        
+            
         print(f"📝 README作成: {readme_path}")
         print("\n✅ プロジェクト初期化が完了しました！")
         print(f"\n次のコマンドでセットアップを確認できます:")
         print(f"cd {workspace_path}")
-        print(f"nocturnal status --config {config_path}")
+        print(f"nocturnal --config {config_path} status")
     
     async def _monitor_execution(self, session_id: str) -> None:
         """実行監視"""
@@ -2048,11 +2270,15 @@ nocturnal report daily --config {config_path}
             
             generated_tasks = design.get('generated_tasks', [])
             created_task_ids = []
+            task_id_mapping = {}  # 元のタスクID → 新しいタスクIDのマッピング
             
             print(f"📝 タスク登録開始: {len(generated_tasks)}個のタスク")
             
+            # 第1パス: 依存関係なしでタスクを作成
             for task_data in generated_tasks:
-                # タスクデータを実装タスク用に変換
+                original_task_id = task_data.get('task_id', f"task_{len(created_task_ids)}")
+                
+                # タスクデータを実装タスク用に変換（依存関係は後で設定）
                 task_spec = {
                     'title': task_data.get('title', 'Unknown Task'),
                     'description': task_data.get('description', ''),
@@ -2060,14 +2286,32 @@ nocturnal report daily --config {config_path}
                     'estimated_hours': task_data.get('estimated_hours', 2.0),
                     'technical_requirements': task_data.get('technical_requirements', []),
                     'acceptance_criteria': task_data.get('acceptance_criteria', []),
-                    'dependencies': task_data.get('dependencies', [])
+                    'dependencies': []  # 一旦空にする
                 }
                 
                 task_id = task_manager.create_task_from_specification(task_spec)
                 created_task_ids.append(task_id)
+                task_id_mapping[original_task_id] = task_id
                 
                 # 作成されたタスクを承認状態にする
                 task_manager.approve_task(task_id, "design_file_execution")
+            
+            # 第2パス: 依存関係を設定
+            for i, task_data in enumerate(generated_tasks):
+                if 'dependencies' in task_data and task_data['dependencies']:
+                    task_id = created_task_ids[i]
+                    # 依存タスクIDを新しいIDに変換
+                    valid_dependencies = []
+                    for dep_id in task_data['dependencies']:
+                        if dep_id in task_id_mapping:
+                            valid_dependencies.append(task_id_mapping[dep_id])
+                        else:
+                            # 依存タスクIDが見つからない場合は警告してスキップ
+                            print(f"⚠️ 依存タスクIDが見つかりません（スキップ）: {dep_id}")
+                    
+                    # タスクの依存関係を更新
+                    if task_id in task_manager.tasks:
+                        task_manager.tasks[task_id].dependencies = valid_dependencies
             
             print(f"✅ {len(created_task_ids)}個のタスクを登録・承認完了")
             
@@ -2119,6 +2363,205 @@ nocturnal report daily --config {config_path}
             if args.verbose:
                 import traceback
                 traceback.print_exc()
+
+    
+    async def _progress_command(self, args):
+        """progress コマンドの実行（進捗状況確認）"""
+        try:
+            import os
+            import json
+            import time
+            from pathlib import Path
+            from datetime import datetime
+            
+            print("🔍 実行進捗状況を確認中...")
+            
+            # ワークスペースの特定
+            if args.workspace:
+                workspace_path = Path(args.workspace)
+            elif args.design_file:
+                # 設計ファイルからワークスペースを推定
+                design_file = Path(args.design_file)
+                if design_file.name == 'main_design.yaml':
+                    workspace_path = design_file.parent.parent
+                else:
+                    workspace_path = design_file.parent
+            else:
+                # 現在のディレクトリから推定
+                workspace_path = Path.cwd()
+            
+            print(f"📁 ワークスペース: {workspace_path}")
+            
+            # ClaudeCode実行ログディレクトリを探す
+            execution_dirs = [
+                workspace_path / ".nocturnal" / "claude_executions",
+                workspace_path / "team_designs" / ".nocturnal" / "claude_executions",
+                workspace_path / ".nocturnal" / "executions"
+            ]
+            
+            execution_dir = None
+            for dir_path in execution_dirs:
+                if dir_path.exists():
+                    execution_dir = dir_path
+                    break
+            
+            if not execution_dir:
+                print("❌ 実行ログディレクトリが見つかりません")
+                print("   実行中のタスクがない可能性があります")
+                return
+            
+            # 実行状況を分析
+            def analyze_execution_progress():
+                """実行進捗を分析"""
+                log_files = list(execution_dir.glob("impl_*_instruction.md"))
+                result_files = list(execution_dir.glob("impl_*_result.json"))
+                
+                # ファイル名から実行セッションとタスク番号を抽出
+                tasks = {}
+                for file_path in log_files:
+                    parts = file_path.stem.split('_')
+                    if len(parts) >= 4:
+                        session = f"{parts[1]}_{parts[2]}"
+                        task_num = parts[3]
+                        task_id = f"impl_{session}_{task_num}"
+                        
+                        if task_id not in tasks:
+                            tasks[task_id] = {
+                                'instruction_file': file_path,
+                                'result_file': None,
+                                'status': 'running',
+                                'start_time': datetime.fromtimestamp(file_path.stat().st_mtime),
+                                'title': 'Unknown Task'
+                            }
+                
+                # 結果ファイルをマッチング
+                for file_path in result_files:
+                    parts = file_path.stem.split('_')
+                    if len(parts) >= 4:
+                        session = f"{parts[1]}_{parts[2]}"
+                        task_num = parts[3]
+                        task_id = f"impl_{session}_{task_num}"
+                        
+                        if task_id in tasks:
+                            tasks[task_id]['result_file'] = file_path
+                            tasks[task_id]['status'] = 'completed'
+                            tasks[task_id]['end_time'] = datetime.fromtimestamp(file_path.stat().st_mtime)
+                
+                # タスク詳細を読み込み
+                for task_id, task_info in tasks.items():
+                    try:
+                        with open(task_info['instruction_file'], 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            # タイトルを抽出
+                            lines = content.split('\n')
+                            for line in lines:
+                                if line.startswith('- **タイトル**:'):
+                                    task_info['title'] = line.split(': ', 1)[1].strip()
+                                    break
+                    except Exception:
+                        pass
+                
+                return tasks
+            
+            # リフレッシュモード
+            if args.refresh > 0:
+                print(f"🔄 {args.refresh}秒ごとに自動更新中... (Ctrl+Cで停止)")
+                try:
+                    while True:
+                        os.system('clear' if os.name == 'posix' else 'cls')  # 画面クリア
+                        print(f"🔍 進捗状況 - {datetime.now().strftime('%H:%M:%S')}")
+                        print("=" * 60)
+                        
+                        tasks = analyze_execution_progress()
+                        self._display_progress(tasks, args.detailed)
+                        
+                        time.sleep(args.refresh)
+                except KeyboardInterrupt:
+                    print("\n⏹️ 自動更新を停止しました")
+                    return
+            else:
+                # 一回だけ表示
+                tasks = analyze_execution_progress()
+                self._display_progress(tasks, args.detailed)
+                
+        except Exception as e:
+            print(f"❌ 進捗確認エラー: {e}")
+            if args.verbose:
+                import traceback
+                traceback.print_exc()
+    
+    def _display_progress(self, tasks, detailed=False):
+        """進捗状況を表示"""
+        if not tasks:
+            print("📭 実行中または完了済みのタスクがありません")
+            return
+        
+        # ステータス別にグループ化
+        completed_tasks = [t for t in tasks.values() if t['status'] == 'completed']
+        running_tasks = [t for t in tasks.values() if t['status'] == 'running']
+        
+        total_tasks = len(tasks)
+        completed_count = len(completed_tasks)
+        running_count = len(running_tasks)
+        
+        # 進捗サマリー
+        progress_rate = (completed_count / total_tasks) * 100 if total_tasks > 0 else 0
+        print(f"📊 **進捗サマリー**")
+        print(f"   総タスク数: {total_tasks}")
+        print(f"   完了: {completed_count} ({progress_rate:.1f}%)")
+        print(f"   実行中: {running_count}")
+        print()
+        
+        # 実行中タスク
+        if running_tasks:
+            print("🔄 **実行中タスク:**")
+            for task in sorted(running_tasks, key=lambda x: x['start_time'], reverse=True):
+                duration = datetime.now() - task['start_time']
+                minutes = int(duration.total_seconds() / 60)
+                print(f"   ⏳ {task['title']} (実行時間: {minutes}分)")
+            print()
+        
+        # 最近完了したタスク（最新5件）
+        if completed_tasks:
+            recent_completed = sorted(completed_tasks, key=lambda x: x.get('end_time', x['start_time']), reverse=True)[:5]
+            print("✅ **最近完了したタスク:**")
+            for task in recent_completed:
+                end_time = task.get('end_time', task['start_time'])
+                print(f"   ✓ {task['title']} ({end_time.strftime('%H:%M')})")
+            print()
+        
+        # 詳細情報
+        if detailed:
+            print("📋 **詳細情報:**")
+            for task_id, task in sorted(tasks.items()):
+                status_icon = "✅" if task['status'] == 'completed' else "🔄"
+                print(f"   {status_icon} {task_id}")
+                print(f"      タイトル: {task['title']}")
+                print(f"      開始時刻: {task['start_time'].strftime('%Y-%m-%d %H:%M:%S')}")
+                if task['status'] == 'completed' and 'end_time' in task:
+                    duration = task['end_time'] - task['start_time']
+                    print(f"      完了時刻: {task['end_time'].strftime('%Y-%m-%d %H:%M:%S')}")
+                    print(f"      実行時間: {int(duration.total_seconds())}秒")
+                print()
+        
+        # 予想完了時刻
+        if running_count > 0 and completed_count > 0:
+            # 平均実行時間を計算
+            avg_duration = 0
+            duration_count = 0
+            for task in completed_tasks:
+                if 'end_time' in task:
+                    duration = task['end_time'] - task['start_time']
+                    avg_duration += duration.total_seconds()
+                    duration_count += 1
+            
+            if duration_count > 0:
+                avg_duration = avg_duration / duration_count
+                remaining_time = avg_duration * running_count
+                estimated_completion = datetime.now().timestamp() + remaining_time
+                completion_time = datetime.fromtimestamp(estimated_completion)
+                
+                print(f"⏰ **予想完了時刻:** {completion_time.strftime('%H:%M:%S')} (約{int(remaining_time/60)}分後)")
 
     async def _design_create_template_command(self, args):
         """design create-template コマンドの実行"""
@@ -2297,6 +2740,751 @@ nocturnal report daily --config {config_path}
             if args.verbose:
                 import traceback
                 traceback.print_exc()
+
+
+    def _setup_team_design_environment(self, workspace_path: Path) -> None:
+        """チーム設計協調環境のセットアップ"""
+        print("\n🤝 チーム設計協調環境をセットアップ中...")
+        
+        team_designs_path = workspace_path / 'team_designs'
+        
+        # デフォルトエージェント専門分野
+        default_agents = [
+            'frontend_specialist',
+            'backend_specialist', 
+            'database_specialist',
+            'qa_specialist'
+        ]
+        
+        from nocturnal_agent.design.design_file_manager import DistributedDesignGenerator
+        from nocturnal_agent.log_system.structured_logger import StructuredLogger
+        
+        # 簡易ロガー作成
+        logger_config = {'console_output': True, 'file_output': False}
+        logger = StructuredLogger(logger_config)
+        
+        design_generator = DistributedDesignGenerator(logger)
+        
+        # 各専門エージェント用ワークスペース作成
+        created_workspaces = []
+        for agent_name in default_agents:
+            try:
+                workspace = design_generator.create_agent_design_workspace(
+                    str(team_designs_path), agent_name
+                )
+                created_workspaces.append(workspace)
+                print(f"  ✅ {agent_name} ワークスペース: {workspace}")
+            except Exception as e:
+                print(f"  ❌ {agent_name} ワークスペース作成失敗: {e}")
+        
+        # チーム協調ガイド作成
+        team_guide_path = team_designs_path / 'TEAM_COLLABORATION_GUIDE.md'
+        team_guide_content = f"""# チーム設計協調ガイド
+
+## 🎯 概要
+このディレクトリは分散チーム設計協調のためのワークスペースです。
+各専門エージェントが独立して設計書を作成し、統合実行を行います。
+
+## 👥 専門エージェント
+
+### 作成済みワークスペース
+{chr(10).join([f"- `{w.name}/` - {w.name.replace('agent_', '').replace('_', ' ').title()}" for w in created_workspaces])}
+
+## 🔄 協調ワークフロー
+
+### 1. 設計書作成
+各エージェントは担当分野の設計書を作成：
+
+```bash
+# Frontend Specialist
+cd designs/agent_frontend_specialist
+cp design_template.yaml web_ui_system.yaml
+# Edit web_ui_system.yaml...
+
+# Backend Specialist  
+cd ../agent_backend_specialist
+cp design_template.yaml api_backend_system.yaml
+# Edit api_backend_system.yaml...
+
+# Database Specialist
+cd ../agent_database_specialist
+cp design_template.yaml data_management_system.yaml
+# Edit data_management_system.yaml...
+
+# QA Specialist
+cd ../agent_qa_specialist
+cp design_template.yaml system_testing.yaml
+# Edit system_testing.yaml...
+```
+
+### 2. 設計検証
+```bash
+# 各設計ファイルの検証
+nocturnal design validate web_ui_system.yaml --detailed
+nocturnal design validate api_backend_system.yaml --detailed
+nocturnal design validate data_management_system.yaml --detailed
+nocturnal design validate system_testing.yaml --detailed
+```
+
+### 3. 段階的実行
+```bash
+# Phase 1: Infrastructure
+nocturnal execute --design-file data_management_system.yaml --mode immediate --max-tasks 2
+
+# Phase 2: Backend Services
+nocturnal execute --design-file api_backend_system.yaml --mode immediate --max-tasks 3
+
+# Phase 3: Frontend Interface
+nocturnal execute --design-file web_ui_system.yaml --mode immediate --max-tasks 2
+
+# Phase 4: Quality Assurance
+nocturnal execute --design-file system_testing.yaml --mode nightly
+```
+
+### 4. 進捗確認
+```bash
+# プロジェクト全体の状況確認
+nocturnal status
+
+# 実行ログ確認
+nocturnal logs --recent
+```
+
+## 📋 設計ファイルテンプレート
+
+各エージェントワークスペースには以下が含まれています：
+
+- `design_template.yaml` - 標準設計テンプレート
+- `README.md` - 使用方法ガイド
+
+## 🎯 ベストプラクティス
+
+1. **専門分野特化**: 各エージェントは専門分野に集中
+2. **インターフェース明確化**: コンポーネント間の連携を明確に定義
+3. **段階的実装**: 依存関係を考慮した実装順序
+4. **継続的検証**: 各段階での設計検証・テスト実行
+5. **進捗共有**: 定期的な進捗確認とチーム同期
+
+## 🔗 関連コマンド
+
+```bash
+# 新しいエージェントワークスペース追加
+nocturnal design create-template security_specialist --output-dir ./team_designs
+
+# 設計サマリー確認
+nocturnal design summary design_file.yaml
+
+# 実行計画プレビュー
+nocturnal execute --design-file design_file.yaml --dry-run
+```
+
+---
+🌙 **Nocturnal Agent Team Design Collaboration System**
+"""
+        
+        with open(team_guide_path, 'w', encoding='utf-8') as f:
+            f.write(team_guide_content)
+        
+        print(f"  📚 チーム協調ガイド: {team_guide_path}")
+        print(f"✅ チーム設計協調環境セットアップ完了！")
+        print(f"\n👥 {len(created_workspaces)}個の専門エージェントワークスペースを作成しました")
+        print(f"📖 詳細は {team_guide_path} を参照してください")
+    
+    def _generate_project_config(self, project_name: str, workspace_path: Path) -> str:
+        """プロジェクト固有の設定ファイルを生成"""
+        from datetime import datetime
+        
+        # プロジェクト名から推測される設定
+        project_type = self._infer_project_type(project_name)
+        
+        config_content = f"""# Nocturnal Agent Configuration for {project_name}
+# Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+# Documentation: https://github.com/nocturnal-agent/nocturnal-agent
+
+# ================================================================
+# Project Information
+# ================================================================
+project_name: "{project_name}"
+working_directory: "{workspace_path}"
+project_type: "{project_type}"
+created_at: "{datetime.now().isoformat()}"
+
+# ================================================================
+# Local LLM Settings
+# ================================================================
+llm:
+  enabled: true
+  # Model configuration (ensure LM Studio/Ollama is running)
+  model_path: "qwen2.5:7b"  # or "llama3.2:latest", "codellama:latest"
+  api_url: "http://localhost:11434"  # Ollama default, use 1234 for LM Studio
+  timeout: 900  # 15 minutes
+  max_tokens: 4096  # Increased for complex tasks
+  temperature: 0.7  # Balance creativity and consistency
+  
+  # Alternative model configurations (uncomment to use)
+  # model_path: "codellama:13b"     # For code-heavy projects
+  # model_path: "llama3.2:3b"       # For lightweight setup
+  # api_url: "http://localhost:1234" # For LM Studio
+
+# ================================================================
+# Agent Configuration
+# ================================================================
+agents:
+  timeout_seconds: 2400  # 40 minutes for complex tasks
+  max_retries: 3
+  retry_delay: 10  # seconds
+  
+# ================================================================
+# Execution Settings
+# ================================================================
+execution:
+  max_tasks_per_batch: {self._get_batch_size_for_project_type(project_type)}
+  default_mode: "immediate"  # immediate/nightly/scheduled
+  
+  # Task execution constraints
+  constraints:
+    max_parallel_tasks: 1
+    timeout_per_task: 3600  # 1 hour
+    retry_on_failure: true
+    max_retries: 3
+  
+  # Execution modes configuration
+  modes:
+    immediate:
+      max_tasks: 10
+      priority_filter: ["HIGH", "MEDIUM"]
+    
+    nightly:
+      start_time: "22:00"
+      max_duration: 28800  # 8 hours
+      max_tasks: 50
+      
+    scheduled:
+      default_schedule: "0 22 * * *"  # Daily at 10 PM
+      timezone: "Asia/Tokyo"
+
+# ================================================================
+# Logging Configuration  
+# ================================================================
+logging:
+  level: "INFO"  # DEBUG/INFO/WARNING/ERROR
+  console_output: true
+  file_output: true
+  
+  # Log destinations
+  log_directory: "{workspace_path / 'logs'}"
+  max_log_files: 30  # Keep 30 days of logs
+  max_log_size: "100MB"
+  
+  # Structured logging
+  structured_format: true
+  include_timestamps: true
+  include_session_id: true
+  
+  # Claude Code interaction logging
+  claude_code_logs: true
+  
+# ================================================================
+# Safety & Validation
+# ================================================================
+safety:
+  enabled: true
+  backup_before_changes: true
+  max_file_changes: {self._get_max_changes_for_project_type(project_type)}
+  
+  # Pre-execution validation
+  validate_design_files: true
+  require_confirmation: false  # Set to true for production
+  
+  # File operation safety
+  excluded_directories: [".git", "node_modules", "__pycache__", ".venv"]
+  excluded_file_patterns: ["*.log", "*.tmp", "*.pyc"]
+  
+  # Backup configuration
+  backup:
+    enabled: true
+    location: "{workspace_path / '.nocturnal' / 'backups'}"
+    retention_days: 7
+    max_backup_size: "1GB"
+
+# ================================================================
+# Cost Management
+# ================================================================
+cost:
+  tracking_enabled: true
+  daily_limit: 15.0  # USD - adjust based on project needs
+  weekly_limit: 100.0  # USD
+  warning_threshold: 12.0  # USD
+  
+  # Cost optimization
+  auto_optimize: true
+  prefer_batch_operations: true
+  
+# ================================================================
+# Quality Assurance
+# ================================================================
+quality:
+  # Testing requirements
+  testing:
+    unit_test_coverage: 85  # Minimum percentage
+    integration_tests: true
+    e2e_tests: {str(project_type in ['web', 'frontend', 'fullstack']).lower()}
+    
+  # Code quality
+  code_quality:
+    linting: true
+    type_checking: true
+    security_scanning: true
+    dependency_scanning: true
+    
+  # Documentation requirements
+  documentation:
+    api_docs: {str(project_type in ['api', 'backend', 'fullstack']).lower()}
+    user_docs: true
+    developer_docs: true
+    changelog: true
+
+# ================================================================
+# Notification Settings
+# ================================================================
+notifications:
+  enabled: true
+  
+  # Notification channels
+  channels:
+    console: true
+    log_file: true
+    # email: false  # Configure SMTP settings below
+    # slack: false  # Configure webhook URL below
+  
+  # Event triggers
+  on_completion: true
+  on_failure: true
+  on_milestone: true
+  on_cost_warning: true
+  
+  # Email configuration (uncomment to enable)
+  # email:
+  #   smtp_server: "smtp.gmail.com"
+  #   smtp_port: 587
+  #   username: "your-email@gmail.com"
+  #   password: "your-app-password"
+  #   to_addresses: ["developer@company.com"]
+  
+  # Slack configuration (uncomment to enable)
+  # slack:
+  #   webhook_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+  #   channel: "#development"
+
+# ================================================================
+# Integration Settings
+# ================================================================
+integrations:
+  # Claude Code CLI
+  claude_code:
+    enabled: true
+    timeout: 600  # 10 minutes
+    max_retries: 2
+    
+  # GitHub integration
+  github:
+    enabled: false  # Set to true if using GitHub
+    # repository: "organization/repository-name"
+    # token: "your-github-token"  # Use environment variable in production
+    
+  # Spec Kit integration
+  spec_kit:
+    enabled: true
+    auto_generate: true
+    template_version: "1.0"
+
+# ================================================================
+# Development Environment
+# ================================================================
+development:
+  # Environment detection
+  auto_detect_stack: true
+  
+  # Language-specific settings
+  python:
+    version: "3.9+"
+    virtual_env: true
+    requirements_file: "requirements.txt"
+    
+  javascript:
+    version: "18+"
+    package_manager: "npm"  # npm/yarn/pnpm
+    
+  # Development tools
+  tools:
+    git_hooks: true
+    pre_commit: true
+    auto_format: true
+
+# ================================================================
+# Advanced Configuration
+# ================================================================
+advanced:
+  # Performance tuning
+  performance:
+    cache_enabled: true
+    cache_ttl: 3600  # 1 hour
+    parallel_processing: false  # Enable for powerful machines
+    
+  # Experimental features
+  experimental:
+    ai_code_review: false
+    auto_dependency_update: false
+    smart_task_prioritization: true
+    
+# ================================================================
+# Project-Specific Settings
+# ================================================================
+# Add your custom project settings below
+project_specific:
+  # Example configurations based on project type
+  {self._get_project_specific_config(project_type)}
+
+# ================================================================
+# Environment Variables
+# ================================================================
+# Reference environment variables with ${{ENV_VAR_NAME}}
+# Example: api_key: ${{OPENAI_API_KEY}}
+"""
+        return config_content
+    
+    def _infer_project_type(self, project_name: str) -> str:
+        """プロジェクト名から推測されるプロジェクトタイプ"""
+        name_lower = project_name.lower()
+        
+        if any(keyword in name_lower for keyword in ['web', 'ui', 'frontend', 'react', 'vue', 'angular']):
+            return 'frontend'
+        elif any(keyword in name_lower for keyword in ['api', 'backend', 'server', 'service']):
+            return 'backend'
+        elif any(keyword in name_lower for keyword in ['database', 'db', 'data', 'storage']):
+            return 'database'
+        elif any(keyword in name_lower for keyword in ['test', 'qa', 'quality']):
+            return 'testing'
+        elif any(keyword in name_lower for keyword in ['mobile', 'app', 'ios', 'android']):
+            return 'mobile'
+        elif any(keyword in name_lower for keyword in ['ml', 'ai', 'machine', 'learning', 'data']):
+            return 'data_science'
+        elif any(keyword in name_lower for keyword in ['fullstack', 'full-stack', 'complete']):
+            return 'fullstack'
+        else:
+            return 'general'
+    
+    def _get_batch_size_for_project_type(self, project_type: str) -> int:
+        """プロジェクトタイプに応じた推奨バッチサイズ"""
+        batch_sizes = {
+            'frontend': 2,    # UI changes need careful review
+            'backend': 3,     # API changes can be batched
+            'database': 1,    # Database changes are critical
+            'testing': 4,     # Tests can be batched
+            'mobile': 2,      # Mobile changes need careful review
+            'data_science': 3, # Data processing can be batched
+            'fullstack': 2,   # Complex projects need careful handling
+            'general': 3      # Default moderate batching
+        }
+        return batch_sizes.get(project_type, 3)
+    
+    def _get_max_changes_for_project_type(self, project_type: str) -> int:
+        """プロジェクトタイプに応じた最大変更ファイル数"""
+        max_changes = {
+            'frontend': 30,   # Many component files
+            'backend': 25,    # Service and model files
+            'database': 10,   # Critical changes limited
+            'testing': 50,    # Many test files
+            'mobile': 20,     # Platform-specific files
+            'data_science': 35, # Notebooks and data files
+            'fullstack': 40,  # Mixed file types
+            'general': 30     # Default reasonable limit
+        }
+        return max_changes.get(project_type, 30)
+    
+    def _get_project_specific_config(self, project_type: str) -> str:
+        """プロジェクトタイプ固有の設定"""
+        configs = {
+            'frontend': '''# Frontend-specific settings
+  build:
+    bundler: "vite"  # vite/webpack/parcel
+    output_dir: "dist"
+    
+  development:
+    hot_reload: true
+    source_maps: true
+    
+  deployment:
+    platform: "vercel"  # vercel/netlify/aws-s3
+    auto_deploy: true''',
+            
+            'backend': '''# Backend-specific settings
+  api:
+    framework: "fastapi"  # fastapi/express/django
+    port: 8000
+    cors_enabled: true
+    
+  database:
+    type: "postgresql"
+    migrations: true
+    
+  deployment:
+    containerized: true
+    platform: "aws"  # aws/gcp/azure''',
+            
+            'database': '''# Database-specific settings
+  database:
+    type: "postgresql"
+    version: "14+"
+    backup_schedule: "0 2 * * *"  # Daily at 2 AM
+    
+  monitoring:
+    slow_query_threshold: 1000  # milliseconds
+    connection_pool_size: 20
+    
+  security:
+    encryption: true
+    access_logging: true''',
+            
+            'testing': '''# Testing-specific settings
+  testing:
+    frameworks: ["jest", "pytest", "playwright"]
+    coverage_threshold: 90
+    
+  ci_cd:
+    platform: "github-actions"
+    auto_run_tests: true
+    
+  reporting:
+    format: "allure"
+    publish_reports: true''',
+            
+            'fullstack': '''# Full-stack specific settings
+  frontend:
+    framework: "react"
+    
+  backend:
+    framework: "fastapi"
+    
+  database:
+    type: "postgresql"
+    
+  deployment:
+    strategy: "microservices"
+    containerized: true'''
+        }
+        return configs.get(project_type, '# General project - add custom settings as needed')
+
+    # Natural Language Commands Implementation
+    
+    async def _natural_generate_command(self, args):
+        """自然言語要件から設計ファイルを生成"""
+        from ..requirements import RequirementsParser, DesignFileGenerator
+        
+        try:
+            print(f"🧠 自然言語要件を解析中: {args.requirements[:50]}...")
+            
+            # 要件解析
+            parser = RequirementsParser()
+            analysis = parser.parse_requirements(args.requirements)
+            
+            print(f"✅ 解析完了:")
+            print(f"  📋 プロジェクトタイプ: {analysis.project_type}")
+            print(f"  🎯 主要機能: {len(analysis.primary_features)}個")
+            print(f"  🔧 技術要件: {len(analysis.technical_requirements)}個")
+            print(f"  📊 複雑度: {analysis.estimated_complexity}")
+            print(f"  🤖 エージェント割り当て: {len(analysis.agent_assignments)}個")
+            
+            if args.dry_run:
+                print("\n📋 解析結果詳細:")
+                print(f"主要機能: {', '.join(analysis.primary_features)}")
+                print(f"技術要件: {', '.join(analysis.technical_requirements)}")
+                print(f"データベース要件: {', '.join(analysis.database_needs)}")
+                print(f"UI要件: {', '.join(analysis.ui_requirements)}")
+                print(f"品質要件: {', '.join(analysis.quality_requirements)}")
+                print(f"推奨アーキテクチャ: {analysis.suggested_architecture}")
+                
+                print("\n🤖 エージェント割り当て:")
+                for agent, tasks in analysis.agent_assignments.items():
+                    if tasks:
+                        print(f"  {agent}: {len(tasks)}個のタスク")
+                        for task in tasks[:3]:  # 最初の3つのみ表示
+                            print(f"    - {task}")
+                        if len(tasks) > 3:
+                            print(f"    ...他{len(tasks)-3}個")
+                return
+            
+            # 設計ファイル生成
+            print("\n📝 設計ファイルを生成中...")
+            generator = DesignFileGenerator()
+            generated_files = generator.generate_design_files(
+                analysis, args.workspace, args.project_name
+            )
+            
+            print("✅ 設計ファイル生成完了:")
+            for agent, file_path in generated_files.items():
+                print(f"  📄 {agent}: {file_path}")
+            
+            # 実行開始
+            if args.execute:
+                print("\n🚀 即座に実行を開始...")
+                main_design_file = generated_files.get('main')
+                if main_design_file:
+                    # execute コマンドを実行
+                    execute_args = type('Args', (), {
+                        'design_file': main_design_file,
+                        'mode': 'immediate',
+                        'max_tasks': 10,
+                        'dry_run': False,
+                        'validate_only': False,
+                        'schedule_time': None
+                    })()
+                    await self._execute_command(execute_args)
+                else:
+                    print("❌ メイン設計ファイルが見つかりません")
+                    
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            import traceback
+            traceback.print_exc()
+
+    async def _natural_analyze_command(self, args):
+        """自然言語要件を解析（設計ファイル生成なし）"""
+        from ..requirements import RequirementsParser
+        
+        try:
+            print(f"🧠 自然言語要件を解析中...")
+            
+            parser = RequirementsParser()
+            analysis = parser.parse_requirements(args.requirements)
+            
+            print(f"\n📊 解析結果:")
+            print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print(f"📋 プロジェクトタイプ: {analysis.project_type}")
+            print(f"📊 複雑度: {analysis.estimated_complexity}")
+            print(f"🏗️ 推奨アーキテクチャ: {analysis.suggested_architecture}")
+            
+            print(f"\n🎯 主要機能 ({len(analysis.primary_features)}個):")
+            for i, feature in enumerate(analysis.primary_features, 1):
+                print(f"  {i}. {feature}")
+            
+            print(f"\n🔧 技術要件 ({len(analysis.technical_requirements)}個):")
+            for i, req in enumerate(analysis.technical_requirements, 1):
+                print(f"  {i}. {req}")
+            
+            if analysis.database_needs:
+                print(f"\n💾 データベース要件 ({len(analysis.database_needs)}個):")
+                for i, need in enumerate(analysis.database_needs, 1):
+                    print(f"  {i}. {need}")
+            
+            if analysis.ui_requirements:
+                print(f"\n🎨 UI要件 ({len(analysis.ui_requirements)}個):")
+                for i, req in enumerate(analysis.ui_requirements, 1):
+                    print(f"  {i}. {req}")
+            
+            print(f"\n🛡️ 品質要件 ({len(analysis.quality_requirements)}個):")
+            for i, req in enumerate(analysis.quality_requirements, 1):
+                print(f"  {i}. {req}")
+            
+            print(f"\n🤖 エージェント割り当て:")
+            print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            for agent, tasks in analysis.agent_assignments.items():
+                if tasks:
+                    agent_name = {
+                        'frontend_specialist': 'フロントエンド専門家',
+                        'backend_specialist': 'バックエンド専門家',
+                        'database_specialist': 'データベース専門家',
+                        'qa_specialist': '品質保証専門家'
+                    }.get(agent, agent)
+                    
+                    print(f"\n{agent_name} ({len(tasks)}個のタスク):")
+                    for i, task in enumerate(tasks, 1):
+                        print(f"  {i}. {task}")
+            
+            if args.detailed:
+                print(f"\n📈 見積もり:")
+                print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                total_hours = 0
+                for agent, tasks in analysis.agent_assignments.items():
+                    if tasks:
+                        hours = len(tasks) * 6  # エージェントあたり平均6時間/タスク
+                        total_hours += hours
+                        print(f"  {agent}: 約{hours}時間")
+                print(f"  合計見積もり: 約{total_hours}時間 ({total_hours//8}日間)")
+                
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+
+    async def _natural_from_file_command(self, args):
+        """ファイルから要件を読み込んで処理"""
+        from pathlib import Path
+        from ..requirements import RequirementsParser, DesignFileGenerator
+        
+        try:
+            requirements_file = Path(args.requirements_file)
+            if not requirements_file.exists():
+                print(f"❌ ファイルが見つかりません: {requirements_file}")
+                return
+            
+            print(f"📄 要件ファイルを読み込み中: {requirements_file}")
+            
+            # ファイルから要件を読み込み
+            with open(requirements_file, 'r', encoding='utf-8') as f:
+                requirements_text = f.read()
+            
+            if not requirements_text.strip():
+                print("❌ ファイルが空です")
+                return
+            
+            # プロジェクト名を決定
+            project_name = args.project_name
+            if not project_name:
+                project_name = requirements_file.stem.replace('_', ' ').replace('-', ' ').title()
+            
+            print(f"📋 プロジェクト名: {project_name}")
+            print(f"📝 要件内容: {requirements_text[:100]}...")
+            
+            # 解析実行
+            parser = RequirementsParser()
+            analysis = parser.parse_requirements(requirements_text)
+            
+            print(f"\n✅ 解析完了:")
+            print(f"  📋 プロジェクトタイプ: {analysis.project_type}")
+            print(f"  📊 複雑度: {analysis.estimated_complexity}")
+            print(f"  🤖 エージェント割り当て: {len(analysis.agent_assignments)}個")
+            
+            # 設計ファイル生成
+            print("\n📝 設計ファイルを生成中...")
+            generator = DesignFileGenerator()
+            generated_files = generator.generate_design_files(
+                analysis, args.workspace, project_name
+            )
+            
+            print("✅ 設計ファイル生成完了:")
+            for agent, file_path in generated_files.items():
+                print(f"  📄 {agent}: {file_path}")
+            
+            # 実行開始
+            if args.execute:
+                print("\n🚀 即座に実行を開始...")
+                main_design_file = generated_files.get('main')
+                if main_design_file:
+                    execute_args = type('Args', (), {
+                        'design_file': main_design_file,
+                        'mode': 'immediate',
+                        'max_tasks': 10,
+                        'dry_run': False,
+                        'validate_only': False,
+                        'schedule_time': None
+                    })()
+                    await self._execute_command(execute_args)
+                else:
+                    print("❌ メイン設計ファイルが見つかりません")
+                    
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 def main():

@@ -1154,11 +1154,23 @@ class InteractiveReviewManager:
                     
                     # TaskオブジェクトをJSONから復元
                     if 'task' in session_data and isinstance(session_data['task'], dict):
-                        from ..core.models import Task
+                        from ..core.models import Task, TaskPriority
                         task_data = session_data['task']
+                        priority_str = task_data.get('priority', 'medium')
+                        # 文字列を enum に変換
+                        priority = TaskPriority.MEDIUM
+                        if priority_str == 'high':
+                            priority = TaskPriority.HIGH
+                        elif priority_str == 'low':
+                            priority = TaskPriority.LOW
+                        elif priority_str == 'critical':
+                            priority = TaskPriority.CRITICAL
+                        
                         session_data['task'] = Task(
                             description=task_data.get('description', ''),
-                            priority=task_data.get('priority', 'medium')
+                            priority=priority,
+                            requirements=task_data.get('requirements', []),
+                            constraints=task_data.get('constraints', [])
                         )
                     
                     self.review_states[session_id] = session_data
@@ -1327,11 +1339,12 @@ class InteractiveReviewManager:
             self.logger.log(LogLevel.INFO, LogCategory.SYSTEM, f"📝 ファイル形式: {requirements_data['file_format']}")
             
             # Taskオブジェクトを作成
-            from ..core.task import Task
+            from ..core.models import Task, TaskPriority
             task = Task(
-                title=requirements_data['title'],
-                description=requirements_data['description'],
-                priority=requirements_data['priority']
+                description=f"{requirements_data['title']}: {requirements_data['description']}",
+                priority=TaskPriority.MEDIUM if requirements_data['priority'] == 'medium' else TaskPriority.HIGH,
+                requirements=[req for req in requirements_data.get('functional_requirements', [])],
+                constraints=[constraint for constraint in requirements_data.get('constraints', [])]
             )
             
             # セッションIDの生成

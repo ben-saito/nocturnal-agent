@@ -29,6 +29,7 @@ class AgentConfig:
     openai_api_key: Optional[str] = None
     max_retries: int = 3
     timeout_seconds: int = 300
+    retry_delay: int = 10  # 新しいフィールド: リトライ間隔（秒）
 
     def __post_init__(self):
         if self.fallback_agents is None:
@@ -57,17 +58,27 @@ class SafetyConfig:
     """安全性設定"""
     enabled: bool = True
     backup_before_execution: bool = True
+    backup_before_changes: bool = True  # 新しいフィールド
     danger_detection_enabled: bool = True
     rollback_enabled: bool = True
     max_rollback_points: int = 10
+    max_file_changes: int = 50  # 新しいフィールド
     backup_retention_days: int = 7
+    validate_design_files: bool = True  # 新しいフィールド
+    require_confirmation: bool = False  # 新しいフィールド
     dangerous_operations_blocked: List[str] = None
+    excluded_directories: List[str] = None  # 新しいフィールド
+    excluded_file_patterns: List[str] = None  # 新しいフィールド
 
     def __post_init__(self):
         if self.dangerous_operations_blocked is None:
             self.dangerous_operations_blocked = [
                 "rm -rf", "format", "del /q", "sudo rm", "DROP TABLE"
             ]
+        if self.excluded_directories is None:
+            self.excluded_directories = [".git", "node_modules", "__pycache__", ".venv"]
+        if self.excluded_file_patterns is None:
+            self.excluded_file_patterns = ["*.log", "*.tmp", "*.pyc"]
 
 
 @dataclass
@@ -100,6 +111,9 @@ class NocturnalConfig:
     # 基本設定
     project_name: str = "Nocturnal Agent Project"
     workspace_path: str = "./"
+    working_directory: str = "./"  # 新しいフィールド（workspace_pathの別名）
+    project_type: str = "general"  # 新しいフィールド
+    created_at: str = ""  # 新しいフィールド
     data_directory: str = "./data"
     log_directory: str = "./logs"
     
@@ -337,39 +351,70 @@ class ConfigManager:
         return config_dict
     
     def _dict_to_config(self, config_dict: Dict[str, Any]) -> NocturnalConfig:
-        """辞書からConfigオブジェクトを作成"""
-        # Enum型の変換処理
-        if 'agents' in config_dict and isinstance(config_dict['agents'], dict):
-            agents_dict = config_dict['agents']
-            if 'primary_agent' in agents_dict:
-                agents_dict['primary_agent'] = AgentType(agents_dict['primary_agent'])
-            if 'fallback_agents' in agents_dict:
-                agents_dict['fallback_agents'] = [
-                    AgentType(agent) if isinstance(agent, str) else agent
-                    for agent in agents_dict['fallback_agents']
-                ]
-        
-        # ネストした設定の処理
-        database_config = DatabaseConfig(**(config_dict.get('database', {})))
-        agents_config = AgentConfig(**(config_dict.get('agents', {})))
-        cost_config = CostConfig(**(config_dict.get('cost_management', {})))
-        safety_config = SafetyConfig(**(config_dict.get('safety', {})))
-        parallel_config = ParallelConfig(**(config_dict.get('parallel_execution', {})))
-        logging_config = LoggingConfig(**(config_dict.get('logging', {})))
-        
-        # メイン設定の作成
-        main_config = {k: v for k, v in config_dict.items() 
-                      if k not in ['database', 'agents', 'cost_management', 'safety', 'parallel_execution', 'logging']}
-        
-        return NocturnalConfig(
-            database=database_config,
-            agents=agents_config,
-            cost_management=cost_config,
-            safety=safety_config,
-            parallel_execution=parallel_config,
-            logging=logging_config,
-            **main_config
-        )
+        """辞書からConfigオブジェクトを作成（新旧両形式対応）"""
+        # 新形式と旧形式の両方に対応
+        try:
+            # Enum型の変換処理
+            if 'agents' in config_dict and isinstance(config_dict['agents'], dict):
+                agents_dict = config_dict['agents']
+                if 'primary_agent' in agents_dict:
+                    if isinstance(agents_dict['primary_agent'], str):
+                        agents_dict['primary_agent'] = AgentType(agents_dict['primary_agent'])
+                if 'fallback_agents' in agents_dict:
+                    agents_dict['fallback_agents'] = [
+                        AgentType(agent) if isinstance(agent, str) else agent
+                        for agent in agents_dict['fallback_agents']
+                    ]
+            
+            # ネストした設定の処理（フィールド不足の場合はデフォルト値使用）
+            database_config = self._safe_create_config(DatabaseConfig, config_dict.get('database', {}))
+            agents_config = self._safe_create_config(AgentConfig, config_dict.get('agents', {}))
+            
+            # cost/cost_management の両方に対応
+            cost_data = config_dict.get('cost', config_dict.get('cost_management', {}))
+            cost_config = self._safe_create_config(CostConfig, cost_data)
+            
+            safety_config = self._safe_create_config(SafetyConfig, config_dict.get('safety', {}))
+            parallel_config = self._safe_create_config(ParallelConfig, config_dict.get('parallel_execution', {}))
+            logging_config = self._safe_create_config(LoggingConfig, config_dict.get('logging', {}))
+            
+            # メイン設定の作成（新形式の追加フィールドは無視）
+            excluded_keys = {
+                'database', 'agents', 'cost', 'cost_management', 'safety', 
+                'parallel_execution', 'logging', 'execution', 'quality', 
+                'notifications', 'integrations', 'development', 'advanced',
+                'project_specific', 'project_type', 'created_at', 'llm'
+            }
+            main_config = {k: v for k, v in config_dict.items() if k not in excluded_keys}
+            
+            return NocturnalConfig(
+                database=database_config,
+                agents=agents_config,
+                cost_management=cost_config,
+                safety=safety_config,
+                parallel_execution=parallel_config,
+                logging=logging_config,
+                **main_config
+            )
+            
+        except Exception as e:
+            self.logger.warning(f"新形式設定読み込み失敗、デフォルト設定使用: {e}")
+            # フォールバック: デフォルト設定
+            return NocturnalConfig()
+    
+    def _safe_create_config(self, config_class, config_data: Dict[str, Any]):
+        """安全な設定オブジェクト作成（不明なフィールドは無視）"""
+        if not isinstance(config_data, dict):
+            return config_class()
+            
+        try:
+            # dataclassの有効なフィールドのみを抽出
+            valid_fields = {field.name for field in config_class.__dataclass_fields__.values()}
+            filtered_data = {k: v for k, v in config_data.items() if k in valid_fields}
+            return config_class(**filtered_data)
+        except Exception as e:
+            self.logger.warning(f"{config_class.__name__} 作成失敗、デフォルト使用: {e}")
+            return config_class()
     
     def _prepare_config_for_save(self, config_dict: Dict[str, Any]) -> Dict[str, Any]:
         """保存用設定の準備"""

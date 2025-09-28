@@ -46,7 +46,7 @@ dev = [
 ]
 
 [project.scripts]
-nocturnal = "nocturnal_agent.cli:main"
+nocturnal = "nocturnal_agent.cli.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
