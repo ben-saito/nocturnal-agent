@@ -43,8 +43,8 @@ logging:
   output_path: ./logs
   retention_days: 30
 minimum_quality_threshold: 0.6
-night_end_hour: 21
-night_start_hour: 20
+night_end_hour: 10  # 12 hours continuous operation (22:00 - 10:00)
+night_start_hour: 22
 parallel_execution:
   branch_prefix: nocturnal
   execution_timeout_seconds: 600

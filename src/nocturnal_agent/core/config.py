@@ -52,6 +52,7 @@ class SchedulerConfig(BaseModel):
     end_time: str = "06:00"    # 06:00
     max_changes_per_night: int = Field(10, ge=1, le=50)
     max_task_duration_minutes: int = Field(30, ge=5, le=120)
+    max_session_hours: int = Field(12, ge=1, le=24)  # Maximum session duration in hours (default: 12 hours for continuous operation)
     check_interval_seconds: int = Field(30, ge=10, le=300)
     timezone: str = "local"
 
