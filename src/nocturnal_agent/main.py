@@ -69,7 +69,11 @@ class NocturnalAgent:
         
         # スケジューラー（メインエージェントの参照を渡す）
         scheduler_config = {
-            'time_control': {},
+            'time_control': {
+                'max_session_hours': self.config.scheduler.max_session_hours,
+                'timezone': self.config.scheduler.timezone,
+                'window_enabled': True
+            },
             'task_queue': {},
             'resource_monitoring': {},
             'quality_management': {}

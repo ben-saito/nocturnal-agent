@@ -44,11 +44,12 @@ quality:
 # Night scheduler configuration
 scheduler:
   start_time: "22:00"  # 10:00 PM
-  end_time: "06:00"    # 6:00 AM
-  max_changes_per_night: 10
+  end_time: "10:00"    # 10:00 AM (12 hours continuous operation)
+  max_changes_per_night: 20  # Increased for longer operation
   max_task_duration_minutes: 30
+  max_session_hours: 12  # 12 hours continuous operation
   check_interval_seconds: 30
-  timezone: "local"
+  timezone: "Asia/Tokyo"
 
 # Safety and security configuration
 safety:
