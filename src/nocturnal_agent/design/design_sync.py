@@ -4,6 +4,7 @@
 """
 
 import yaml
+import json
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Set
 from dataclasses import dataclass, field
@@ -44,9 +45,13 @@ class DesignSyncManager:
     ) -> List[DesignDiff]:
         """コードを解析して設計書に反映"""
         
+        # 同期ステータスを保存
+        self._save_sync_status(design_file_path, workspace_path, "syncing")
+        
         # 設計書を読み込み
         design = self._load_design_file(design_file_path)
         if not design:
+            self._save_sync_status(design_file_path, workspace_path, "error", error_message="設計書の読み込みに失敗しました")
             return []
         
         # コードを解析
@@ -61,6 +66,7 @@ class DesignSyncManager:
         if not diffs:
             if not quiet:
                 self.logger.info("✅ 設計書とコードに差分はありません")
+            self._save_sync_status(design_file_path, workspace_path, "completed", diffs_count=0)
             return []
         
         # 差分を表示（quietモードでない場合）
@@ -70,6 +76,7 @@ class DesignSyncManager:
         if dry_run:
             if not quiet:
                 self.logger.info("🔍 Dry-runモード: 設計書は更新されませんでした")
+            self._save_sync_status(design_file_path, workspace_path, "completed", diffs_count=len(diffs))
             return diffs
         
         # 設計書を更新
@@ -78,11 +85,51 @@ class DesignSyncManager:
             self._save_design_file(design_file_path, updated_design, backup=create_backup)
             if not quiet:
                 self.logger.info(f"✅ 設計書を更新しました: {design_file_path}")
+            self._save_sync_status(design_file_path, workspace_path, "completed", diffs_count=len(diffs))
         else:
             if not quiet:
                 self.logger.info("❌ 設計書の更新がキャンセルされました")
+            self._save_sync_status(design_file_path, workspace_path, "idle")
         
         return diffs
+    
+    def _save_sync_status(
+        self,
+        design_file_path: Path,
+        workspace_path: Path,
+        status: str,
+        diffs_count: Optional[int] = None,
+        error_message: Optional[str] = None
+    ):
+        """設計書同期ステータスを保存"""
+        try:
+            status_dir = workspace_path / ".nocturnal"
+            status_dir.mkdir(parents=True, exist_ok=True)
+            
+            status_file = status_dir / "design_sync_status.json"
+            status_data = {
+                "status": status,
+                "design_file": str(design_file_path),
+                "started_at": datetime.now().isoformat() if status == "syncing" else None,
+                "completed_at": datetime.now().isoformat() if status in ("completed", "error") else None,
+                "diffs_count": diffs_count,
+                "error_message": error_message
+            }
+            
+            # 既存のステータスがある場合はstarted_atを保持
+            if status_file.exists():
+                try:
+                    with open(status_file, 'r', encoding='utf-8') as f:
+                        existing_data = json.load(f)
+                        if existing_data.get("started_at") and status == "syncing":
+                            status_data["started_at"] = existing_data["started_at"]
+                except:
+                    pass
+            
+            with open(status_file, 'w', encoding='utf-8') as f:
+                json.dump(status_data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            self.logger.warning(f"設計書同期ステータス保存エラー: {e}")
     
     def _load_design_file(self, design_file_path: Path) -> Optional[Dict]:
         """設計書を読み込み"""

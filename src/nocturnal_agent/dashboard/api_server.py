@@ -65,6 +65,17 @@ class DashboardStatsResponse(BaseModel):
     overall_progress: float
     agents: List[AgentProgressResponse]
     recent_logs: List[Dict[str, Any]]
+    design_sync_status: Optional[Dict[str, Any]] = None
+
+
+class DesignSyncStatusResponse(BaseModel):
+    """設計書同期ステータスレスポンスモデル"""
+    status: str  # 'idle', 'syncing', 'completed', 'error'
+    design_file: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    diffs_count: Optional[int] = None
+    error_message: Optional[str] = None
 
 
 class DashboardAPIServer:
@@ -223,6 +234,17 @@ class DashboardAPIServer:
                 self.logger.log(LogLevel.ERROR, LogCategory.API_CALL, 
                               f"ログ取得エラー: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.app.get("/api/design-sync-status", response_model=DesignSyncStatusResponse)
+        async def get_design_sync_status():
+            """設計書同期ステータスを取得"""
+            try:
+                status = await self._get_design_sync_status()
+                return status
+            except Exception as e:
+                self.logger.log(LogLevel.ERROR, LogCategory.API_CALL, 
+                              f"設計書同期ステータス取得エラー: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
     
     async def _get_tasks(self, status_filter: Optional[str] = None) -> List[TaskResponse]:
         """タスク一覧を取得"""
@@ -323,6 +345,7 @@ class DashboardAPIServer:
         
         agents = await self._get_agent_progress()
         recent_logs = await self._get_recent_logs(limit=50)
+        design_sync_status = await self._get_design_sync_status()
         
         return DashboardStatsResponse(
             total_tasks=total,
@@ -332,8 +355,26 @@ class DashboardAPIServer:
             failed_tasks=failed,
             overall_progress=overall_progress,
             agents=agents,
-            recent_logs=recent_logs
+            recent_logs=recent_logs,
+            design_sync_status=design_sync_status.dict() if design_sync_status else None
         )
+    
+    async def _get_design_sync_status(self) -> Optional[DesignSyncStatusResponse]:
+        """設計書同期ステータスを取得"""
+        sync_status_file = self.workspace_path / ".nocturnal" / "design_sync_status.json"
+        
+        if not sync_status_file.exists():
+            return DesignSyncStatusResponse(status="idle")
+        
+        try:
+            with open(sync_status_file, 'r', encoding='utf-8') as f:
+                status_data = json.load(f)
+            
+            return DesignSyncStatusResponse(**status_data)
+        except Exception as e:
+            self.logger.log(LogLevel.WARNING, LogCategory.API_CALL, 
+                          f"設計書同期ステータス読み込みエラー: {e}")
+            return DesignSyncStatusResponse(status="idle")
     
     async def _get_recent_logs(self, limit: int = 100, level_filter: Optional[str] = None) -> List[Dict[str, Any]]:
         """最近のログを取得"""
@@ -608,6 +649,84 @@ class DashboardAPIServer:
         .stat-card.in-progress .value { color: var(--info); }
         .stat-card.pending .value { color: var(--warning); }
         .stat-card.failed .value { color: var(--danger); }
+        
+        .design-sync-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 35px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.2);
+            animation: fadeInUp 0.6s ease-out 0.7s both;
+        }
+        
+        .design-sync-section h2 {
+            color: var(--dark);
+            margin-bottom: 25px;
+            font-size: 1.5em;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sync-status-card {
+            background: linear-gradient(135deg, rgba(85, 104, 211, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+            border: 2px solid rgba(85, 104, 211, 0.2);
+            border-radius: 15px;
+            padding: 25px;
+        }
+        
+        .sync-status-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .sync-status-label {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: var(--dark);
+        }
+        
+        .sync-status-icon {
+            font-size: 2em;
+        }
+        
+        .sync-status-icon.syncing {
+            color: var(--info);
+            animation: spin 1s linear infinite;
+        }
+        
+        .sync-status-icon.completed {
+            color: var(--success);
+        }
+        
+        .sync-status-icon.error {
+            color: var(--danger);
+        }
+        
+        .sync-status-icon.idle {
+            color: var(--gray);
+        }
+        
+        .sync-status-details {
+            font-size: 0.95em;
+            color: var(--gray);
+            line-height: 1.8;
+        }
+        
+        .sync-status-details span {
+            display: block;
+            margin-bottom: 8px;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
         
         .stat-card .change {
             font-size: 0.9em;
@@ -1318,6 +1437,17 @@ class DashboardAPIServer:
                 </div>
             </div>
             
+            <div id="design-sync-status" class="design-sync-section" style="display: none;">
+                <h2><i class="fas fa-sync-alt"></i> 設計書同期ステータス</h2>
+                <div class="sync-status-card">
+                    <div class="sync-status-header">
+                        <span class="sync-status-label" id="sync-status-label">待機中</span>
+                        <span class="sync-status-icon" id="sync-status-icon"><i class="fas fa-pause-circle"></i></span>
+                    </div>
+                    <div class="sync-status-details" id="sync-status-details"></div>
+                </div>
+            </div>
+            
             <div class="progress-section">
                 <h2><i class="fas fa-chart-line"></i> 全体進捗</h2>
                 <div class="progress-bar-container">
@@ -1395,6 +1525,9 @@ class DashboardAPIServer:
                 
                 // タスクリストを更新
                 renderTasks(data.agents);
+                
+                // 設計書同期ステータスを更新
+                updateDesignSyncStatus(data.design_sync_status);
                 
                 // 最終更新時刻を更新
                 document.getElementById('last-update-time').textContent = new Date().toLocaleString('ja-JP');
@@ -1632,6 +1765,72 @@ class DashboardAPIServer:
                 
                 container.appendChild(item);
             });
+        }
+        
+        function updateDesignSyncStatus(status) {
+            const syncSection = document.getElementById('design-sync-status');
+            const statusLabel = document.getElementById('sync-status-label');
+            const statusIcon = document.getElementById('sync-status-icon');
+            const statusDetails = document.getElementById('sync-status-details');
+            
+            if (!status || status.status === 'idle') {
+                syncSection.style.display = 'none';
+                return;
+            }
+            
+            syncSection.style.display = 'block';
+            
+            // ステータスに応じて表示を更新
+            const statusConfig = {
+                'syncing': {
+                    label: '設計書反映中...',
+                    icon: '<i class="fas fa-sync-alt fa-spin"></i>',
+                    color: 'syncing'
+                },
+                'completed': {
+                    label: '設計書反映完了',
+                    icon: '<i class="fas fa-check-circle"></i>',
+                    color: 'completed'
+                },
+                'error': {
+                    label: '設計書反映エラー',
+                    icon: '<i class="fas fa-exclamation-triangle"></i>',
+                    color: 'error'
+                },
+                'idle': {
+                    label: '待機中',
+                    icon: '<i class="fas fa-pause-circle"></i>',
+                    color: 'idle'
+                }
+            };
+            
+            const config = statusConfig[status.status] || statusConfig['idle'];
+            statusLabel.textContent = config.label;
+            statusIcon.innerHTML = config.icon;
+            statusIcon.className = `sync-status-icon ${config.color}`;
+            
+            // 詳細情報を表示
+            let detailsHtml = '';
+            if (status.design_file) {
+                const fileName = status.design_file.split('/').pop();
+                detailsHtml += `<span><i class="fas fa-file-alt"></i> 設計書: ${fileName}</span>`;
+            }
+            if (status.started_at) {
+                const startTime = new Date(status.started_at).toLocaleString('ja-JP');
+                detailsHtml += `<span><i class="fas fa-play"></i> 開始時刻: ${startTime}</span>`;
+            }
+            if (status.completed_at) {
+                const endTime = new Date(status.completed_at).toLocaleString('ja-JP');
+                detailsHtml += `<span><i class="fas fa-check"></i> 完了時刻: ${endTime}</span>`;
+            }
+            if (status.diffs_count !== null && status.diffs_count !== undefined) {
+                detailsHtml += `<span><i class="fas fa-exchange-alt"></i> 検出された差分: ${status.diffs_count}件</span>`;
+            }
+            if (status.error_message) {
+                detailsHtml += `<span style="color: var(--danger);"><i class="fas fa-exclamation-circle"></i> エラー: ${status.error_message}</span>`;
+            }
+            
+            statusDetails.innerHTML = detailsHtml || '<span>詳細情報なし</span>';
         }
         
         // 初回読み込み
