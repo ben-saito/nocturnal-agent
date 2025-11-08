@@ -1,283 +1,246 @@
-"""Configuration management system for Nocturnal Agent."""
+"""Configuration management system for Nocturnal Agent.
 
-import os
-from pathlib import Path
+⚠️ DEPRECATED: このモジュールは非推奨です。
+新しいコードでは `nocturnal_agent.config.config_manager` を使用してください。
+
+後方互換性のため、このモジュールから設定クラスをインポートできますが、
+実際の設定は `config.config_manager` から読み込まれます。
+"""
+
+import warnings
 from typing import Any, Dict, List, Optional
+from pathlib import Path
 
-import yaml
-from pydantic import BaseModel, ConfigDict, Field, validator
+# 後方互換性のため、config.config_managerからインポート
+from ..config.config_manager import (
+    LLMConfig as _LLMConfig,
+    ClaudeConfig as _ClaudeConfig,
+    QualityConfig as _QualityConfig,
+    SchedulerConfig as _SchedulerConfig,
+    SafetyConfig as _SafetyConfig,
+    CostConfig as _CostConfig,
+    ObsidianConfig as _ObsidianConfig,
+    ParallelConfig as _ParallelConfig,
+    LoggingConfig as _LoggingConfig,
+    ConfigManager as _ConfigManager,
+    NocturnalConfig as _NocturnalConfig,
+)
+
+# 警告を表示（初回インポート時のみ）
+_warning_shown = False
+
+def _show_deprecation_warning():
+    """非推奨警告を表示"""
+    global _warning_shown
+    if not _warning_shown:
+        warnings.warn(
+            "nocturnal_agent.core.config は非推奨です。"
+            "nocturnal_agent.config.config_manager を使用してください。",
+            DeprecationWarning,
+            stacklevel=3
+        )
+        _warning_shown = True
 
 
-class LLMConfig(BaseModel):
-    """Configuration for Local LLM."""
-    model_config = ConfigDict(protected_namespaces=())
+# 後方互換性のためのエイリアス
+# dataclassをPydanticスタイルで使用できるようにラップ
+class LLMConfig:
+    """Configuration for Local LLM (後方互換性のためのラッパー)."""
     
-    model_path: str = "qwen2.5:7b"  # GPT-OSS 高性能モデルに変更
-    api_url: str = "http://localhost:11434"
-    timeout: int = 600  # 10分に延長（複雑なプロンプト対応）
-    max_tokens: int = 1024  # タイムアウト対策で軽量化
-    temperature: float = 0.7
-    enabled: bool = True
-
-
-class ClaudeConfig(BaseModel):
-    """Configuration for Claude Code agent."""
-    cli_command: str = "claude"
-    max_retries: int = 3
-    timeout: int = 300  # 5 minutes
-    enabled: bool = True
-    check_auth_on_startup: bool = True
-
-
-class AgentConfig(BaseModel):
-    """Configuration for external agents."""
-    claude: ClaudeConfig = Field(default_factory=ClaudeConfig)
-    # Future agents will be added here
-    # github_copilot: GitHubCopilotConfig = Field(default_factory=GitHubCopilotConfig)
-    # openai_codex: OpenAICodexConfig = Field(default_factory=OpenAICodexConfig)
-
-
-class QualityConfig(BaseModel):
-    """Configuration for quality assessment."""
-    overall_threshold: float = Field(0.85, ge=0.0, le=1.0)
-    consistency_threshold: float = Field(0.85, ge=0.0, le=1.0)
-    max_improvement_cycles: int = Field(3, ge=1, le=10)
-    enable_static_analysis: bool = True
-    static_analysis_tools: List[str] = Field(default_factory=lambda: ["pylint", "flake8", "mypy"])
-
-
-class SchedulerConfig(BaseModel):
-    """Configuration for night scheduler."""
-    start_time: str = "22:00"  # 22:00
-    end_time: str = "06:00"    # 06:00
-    max_changes_per_night: int = Field(10, ge=1, le=50)
-    max_task_duration_minutes: int = Field(30, ge=5, le=120)
-    max_session_hours: int = Field(12, ge=1, le=24)  # Maximum session duration in hours (default: 12 hours for continuous operation)
-    check_interval_seconds: int = Field(30, ge=10, le=300)
-    timezone: str = "local"
-
-
-class SafetyConfig(BaseModel):
-    """Configuration for safety mechanisms."""
-    enable_backups: bool = True
-    backup_before_execution: bool = True
-    max_file_changes_per_task: int = Field(20, ge=1, le=100)
-    cpu_limit_percent: float = Field(80.0, ge=10.0, le=95.0)
-    memory_limit_gb: float = Field(8.0, ge=1.0, le=32.0)
-    dangerous_commands: List[str] = Field(default_factory=lambda: [
-        "rm", "rmdir", "del", "format", "fdisk", "mkfs", "dd",
-        "sudo rm", "sudo rmdir", "sudo del"
-    ])
-    protected_paths: List[str] = Field(default_factory=lambda: [
-        "/etc", "/sys", "/proc", "/dev", "/boot",
-        "C:\\Windows", "C:\\System32", "C:\\Program Files"
-    ])
-
-
-class CostConfig(BaseModel):
-    """Configuration for cost management."""
-    monthly_budget_usd: float = Field(10.0, ge=0.0, le=1000.0)
-    local_llm_priority: bool = True
-    free_tool_preference_percent: float = Field(90.0, ge=50.0, le=100.0)
-    track_api_usage: bool = True
-    warn_at_budget_percent: float = Field(80.0, ge=50.0, le=95.0)
-
-
-class ObsidianConfig(BaseModel):
-    """Configuration for Obsidian integration."""
-    vault_path: str = "knowledge-vault"
-    auto_create_vault: bool = True
-    markdown_template_path: Optional[str] = None
-    enable_frontmatter: bool = True
-    enable_backlinks: bool = True
-
-
-class ParallelConfig(BaseModel):
-    """Configuration for parallel execution."""
-    max_parallel_branches: int = Field(5, ge=1, le=10)
-    high_quality_threshold: float = Field(0.85, ge=0.7, le=1.0)
-    medium_quality_threshold: float = Field(0.70, ge=0.5, le=0.84)
-    enable_experimental_branches: bool = True
-    merge_strategy: str = Field("auto", pattern="^(auto|manual|quality_based)$")
-
-
-class LoggingConfig(BaseModel):
-    """Configuration for logging."""
-    level: str = Field("INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
-    format: str = "json"  # json or text
-    file_path: Optional[str] = "logs/nocturnal-agent.log"
-    max_file_size_mb: int = Field(100, ge=1, le=1000)
-    backup_count: int = Field(5, ge=1, le=20)
-    enable_structlog: bool = True
-
-
-class NocturnalAgentConfig(BaseModel):
-    """Main configuration for Nocturnal Agent."""
-    # Core settings
-    project_name: str = "nocturnal-agent"
-    working_directory: str = "."
+    def __init__(self, **kwargs):
+        """LLMConfigの初期化"""
+        _show_deprecation_warning()
+        self._config = _LLMConfig(**kwargs)
     
-    # Component configurations
-    llm: LLMConfig = Field(default_factory=LLMConfig)
-    agents: AgentConfig = Field(default_factory=AgentConfig)
-    quality: QualityConfig = Field(default_factory=QualityConfig)
-    scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
-    safety: SafetyConfig = Field(default_factory=SafetyConfig)
-    cost: CostConfig = Field(default_factory=CostConfig)
-    obsidian: ObsidianConfig = Field(default_factory=ObsidianConfig)
-    parallel: ParallelConfig = Field(default_factory=ParallelConfig)
-    logging: LoggingConfig = Field(default_factory=LoggingConfig)
+    @property
+    def model_path(self) -> str:
+        return self._config.model_path
     
-    # Advanced settings
-    debug_mode: bool = False
-    dry_run: bool = False
+    @model_path.setter
+    def model_path(self, value: str):
+        self._config.model_path = value
     
-    @validator('working_directory')
-    def validate_working_directory(cls, v):
-        """Validate working directory exists."""
-        path = Path(v)
-        if not path.exists():
-            raise ValueError(f"Working directory does not exist: {v}")
-        return str(path.absolute())
+    @property
+    def api_url(self) -> str:
+        return self._config.api_url
     
-    @validator('scheduler')
-    def validate_scheduler_times(cls, v):
-        """Validate scheduler time format."""
-        import re
-        time_pattern = r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$'
-        if not re.match(time_pattern, v.start_time):
-            raise ValueError(f"Invalid start_time format: {v.start_time}")
-        if not re.match(time_pattern, v.end_time):
-            raise ValueError(f"Invalid end_time format: {v.end_time}")
-        return v
+    @api_url.setter
+    def api_url(self, value: str):
+        self._config.api_url = value
+    
+    @property
+    def timeout(self) -> int:
+        return self._config.timeout
+    
+    @timeout.setter
+    def timeout(self, value: int):
+        self._config.timeout = value
+    
+    @property
+    def max_tokens(self) -> int:
+        return self._config.max_tokens
+    
+    @max_tokens.setter
+    def max_tokens(self, value: int):
+        self._config.max_tokens = value
+    
+    @property
+    def temperature(self) -> float:
+        return self._config.temperature
+    
+    @temperature.setter
+    def temperature(self, value: float):
+        self._config.temperature = value
+    
+    @property
+    def enabled(self) -> bool:
+        return self._config.enabled
+    
+    @enabled.setter
+    def enabled(self, value: bool):
+        self._config.enabled = value
+    
+    def dict(self) -> Dict[str, Any]:
+        """辞書形式で返す（Pydantic互換）"""
+        from dataclasses import asdict
+        return asdict(self._config)
 
 
-class ConfigManager:
-    """Manages configuration loading and validation."""
+class ClaudeConfig:
+    """Configuration for Claude Code agent (後方互換性のためのラッパー)."""
     
-    DEFAULT_CONFIG_PATHS = [
-        "config/nocturnal-agent.yaml",
-        "config/nocturnal-agent.yml",
-        "nocturnal-agent.yaml",
-        "nocturnal-agent.yml",
-        "~/.nocturnal-agent/config.yaml",
-        "~/.config/nocturnal-agent/config.yaml",
-    ]
+    def __init__(self, **kwargs):
+        """ClaudeConfigの初期化"""
+        _show_deprecation_warning()
+        self._config = _ClaudeConfig(**kwargs)
     
-    def __init__(self, config_path: Optional[str] = None):
-        """Initialize config manager."""
-        self.config_path = config_path
-        self._config: Optional[NocturnalAgentConfig] = None
+    @property
+    def cli_command(self) -> str:
+        return self._config.cli_command
     
-    def load_config(self) -> NocturnalAgentConfig:
-        """Load configuration from file or create default."""
-        if self._config is not None:
-            return self._config
-        
-        config_data = {}
-        
-        # Load from file if exists
-        config_file = self._find_config_file()
-        if config_file:
-            try:
-                with open(config_file, 'r', encoding='utf-8') as f:
-                    config_data = yaml.safe_load(f) or {}
-            except Exception as e:
-                raise ValueError(f"Failed to load config from {config_file}: {e}")
-        
-        # Override with environment variables
-        config_data.update(self._load_env_overrides())
-        
-        # Create and validate config
-        self._config = NocturnalAgentConfig(**config_data)
-        return self._config
+    @cli_command.setter
+    def cli_command(self, value: str):
+        self._config.cli_command = value
     
-    def save_config(self, config: NocturnalAgentConfig, path: Optional[str] = None) -> None:
-        """Save configuration to file."""
-        config_path = path or self.config_path or "config/nocturnal-agent.yaml"
-        
-        # Ensure directory exists
-        config_dir = Path(config_path).parent
-        config_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Convert to dict and save
-        config_dict = config.dict()
-        with open(config_path, 'w', encoding='utf-8') as f:
-            yaml.dump(config_dict, f, default_flow_style=False, indent=2)
+    @property
+    def max_retries(self) -> int:
+        return self._config.max_retries
     
-    def _find_config_file(self) -> Optional[str]:
-        """Find configuration file in default locations."""
-        if self.config_path:
-            if Path(self.config_path).exists():
-                return self.config_path
-            return None
-        
-        for config_path in self.DEFAULT_CONFIG_PATHS:
-            expanded_path = Path(config_path).expanduser()
-            if expanded_path.exists():
-                return str(expanded_path)
-        
-        return None
+    @max_retries.setter
+    def max_retries(self, value: int):
+        self._config.max_retries = value
     
-    def _load_env_overrides(self) -> Dict[str, Any]:
-        """Load configuration overrides from environment variables."""
-        env_config = {}
-        prefix = "NOCTURNAL_"
-        
-        for key, value in os.environ.items():
-            if not key.startswith(prefix):
-                continue
-            
-            # Convert NOCTURNAL_SCHEDULER_START_TIME -> scheduler.start_time
-            config_key = key[len(prefix):].lower()
-            key_parts = config_key.split('_')
-            
-            # Build nested dict
-            current = env_config
-            for part in key_parts[:-1]:
-                if part not in current:
-                    current[part] = {}
-                current = current[part]
-            
-            # Convert value to appropriate type
-            current[key_parts[-1]] = self._convert_env_value(value)
-        
-        return env_config
+    @property
+    def timeout(self) -> int:
+        return self._config.timeout
     
-    def _convert_env_value(self, value: str) -> Any:
-        """Convert environment variable string to appropriate type."""
-        # Boolean values
-        if value.lower() in ('true', '1', 'yes', 'on'):
-            return True
-        if value.lower() in ('false', '0', 'no', 'off'):
-            return False
-        
-        # Numeric values
-        try:
-            if '.' in value:
-                return float(value)
-            return int(value)
-        except ValueError:
-            pass
-        
-        # List values (comma-separated)
-        if ',' in value:
-            return [item.strip() for item in value.split(',')]
-        
-        return value
+    @timeout.setter
+    def timeout(self, value: int):
+        self._config.timeout = value
+    
+    @property
+    def enabled(self) -> bool:
+        return self._config.enabled
+    
+    @enabled.setter
+    def enabled(self, value: bool):
+        self._config.enabled = value
+    
+    @property
+    def check_auth_on_startup(self) -> bool:
+        return self._config.check_auth_on_startup
+    
+    @check_auth_on_startup.setter
+    def check_auth_on_startup(self, value: bool):
+        self._config.check_auth_on_startup = value
+    
+    def dict(self) -> Dict[str, Any]:
+        """辞書形式で返す（Pydantic互換）"""
+        from dataclasses import asdict
+        return asdict(self._config)
 
 
-def load_config(config_path: Optional[str] = None) -> NocturnalAgentConfig:
-    """Load configuration from file or environment."""
-    manager = ConfigManager(config_path)
+class QualityConfig:
+    """Configuration for quality assessment (後方互換性のためのラッパー)."""
+    
+    def __init__(self, **kwargs):
+        """QualityConfigの初期化"""
+        _show_deprecation_warning()
+        self._config = _QualityConfig(**kwargs)
+    
+    @property
+    def overall_threshold(self) -> float:
+        return self._config.overall_threshold
+    
+    @overall_threshold.setter
+    def overall_threshold(self, value: float):
+        self._config.overall_threshold = value
+    
+    @property
+    def consistency_threshold(self) -> float:
+        return self._config.consistency_threshold
+    
+    @consistency_threshold.setter
+    def consistency_threshold(self, value: float):
+        self._config.consistency_threshold = value
+    
+    @property
+    def max_improvement_cycles(self) -> int:
+        return self._config.max_improvement_cycles
+    
+    @max_improvement_cycles.setter
+    def max_improvement_cycles(self, value: int):
+        self._config.max_improvement_cycles = value
+    
+    @property
+    def enable_static_analysis(self) -> bool:
+        return self._config.enable_static_analysis
+    
+    @enable_static_analysis.setter
+    def enable_static_analysis(self, value: bool):
+        self._config.enable_static_analysis = value
+    
+    @property
+    def static_analysis_tools(self) -> List[str]:
+        return self._config.static_analysis_tools
+    
+    @static_analysis_tools.setter
+    def static_analysis_tools(self, value: List[str]):
+        self._config.static_analysis_tools = value
+    
+    def dict(self) -> Dict[str, Any]:
+        """辞書形式で返す（Pydantic互換）"""
+        from dataclasses import asdict
+        return asdict(self._config)
+
+
+# 他の設定クラスも同様にエイリアスとして提供
+# ただし、実際の使用では直接dataclassを使用することを推奨
+SchedulerConfig = _SchedulerConfig
+SafetyConfig = _SafetyConfig
+CostConfig = _CostConfig
+ObsidianConfig = _ObsidianConfig
+ParallelConfig = _ParallelConfig
+LoggingConfig = _LoggingConfig
+
+# ConfigManagerとNocturnalAgentConfigもエイリアスとして提供
+ConfigManager = _ConfigManager
+NocturnalAgentConfig = _NocturnalConfig
+
+
+def load_config(config_path: Optional[str] = None):
+    """設定を読み込む（後方互換性のため）"""
+    _show_deprecation_warning()
+    manager = _ConfigManager(config_path)
     return manager.load_config()
 
 
 def create_default_config(output_path: str = "config/nocturnal-agent.yaml") -> None:
-    """Create default configuration file."""
-    config = NocturnalAgentConfig()
-    manager = ConfigManager()
-    manager.save_config(config, output_path)
+    """デフォルト設定ファイルを作成（後方互換性のため）"""
+    _show_deprecation_warning()
+    config = _NocturnalConfig()
+    manager = _ConfigManager()
+    manager.save_config(config)
     print(f"Default configuration created at: {output_path}")
 
 

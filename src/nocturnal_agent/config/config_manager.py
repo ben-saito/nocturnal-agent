@@ -12,6 +12,63 @@ from ..core.models import AgentType
 
 
 @dataclass
+class LLMConfig:
+    """ローカルLLM設定"""
+    model_path: str = "qwen2.5:7b"
+    api_url: str = "http://localhost:11434"
+    timeout: int = 600
+    max_tokens: int = 1024
+    temperature: float = 0.7
+    enabled: bool = True
+
+
+@dataclass
+class ClaudeConfig:
+    """Claude Codeエージェント設定"""
+    cli_command: str = "claude"
+    max_retries: int = 3
+    timeout: int = 300
+    enabled: bool = True
+    check_auth_on_startup: bool = True
+
+
+@dataclass
+class QualityConfig:
+    """品質評価設定"""
+    overall_threshold: float = 0.85
+    consistency_threshold: float = 0.85
+    max_improvement_cycles: int = 3
+    enable_static_analysis: bool = True
+    static_analysis_tools: List[str] = None
+
+    def __post_init__(self):
+        if self.static_analysis_tools is None:
+            self.static_analysis_tools = ["pylint", "flake8", "mypy"]
+
+
+@dataclass
+class SchedulerConfig:
+    """夜間スケジューラー設定"""
+    start_time: str = "22:00"
+    end_time: str = "06:00"
+    max_changes_per_night: int = 10
+    max_task_duration_minutes: int = 30
+    max_session_hours: int = 12
+    check_interval_seconds: int = 30
+    timezone: str = "Asia/Tokyo"
+
+
+@dataclass
+class ObsidianConfig:
+    """Obsidian統合設定"""
+    vault_path: str = "knowledge-vault"
+    auto_create_vault: bool = True
+    markdown_template_path: Optional[str] = None
+    enable_frontmatter: bool = True
+    enable_backlinks: bool = True
+
+
+@dataclass
 class DatabaseConfig:
     """データベース設定"""
     type: str = "sqlite"
@@ -118,12 +175,20 @@ class NocturnalConfig:
     log_directory: str = "./logs"
     
     # コンポーネント設定
+    llm: LLMConfig = None
     database: DatabaseConfig = None
     agents: AgentConfig = None
     cost_management: CostConfig = None
     safety: SafetyConfig = None
     parallel_execution: ParallelConfig = None
     logging: LoggingConfig = None
+    quality: QualityConfig = None
+    scheduler: SchedulerConfig = None
+    obsidian: ObsidianConfig = None
+    
+    # 高度な設定
+    debug_mode: bool = False
+    dry_run: bool = False
     
     # スケジューラー設定
     night_start_hour: int = 22
@@ -136,6 +201,8 @@ class NocturnalConfig:
     
     def __post_init__(self):
         """デフォルト値の初期化"""
+        if self.llm is None:
+            self.llm = LLMConfig()
         if self.database is None:
             self.database = DatabaseConfig()
         if self.agents is None:
@@ -148,6 +215,12 @@ class NocturnalConfig:
             self.parallel_execution = ParallelConfig()
         if self.logging is None:
             self.logging = LoggingConfig()
+        if self.quality is None:
+            self.quality = QualityConfig()
+        if self.scheduler is None:
+            self.scheduler = SchedulerConfig()
+        if self.obsidian is None:
+            self.obsidian = ObsidianConfig()
 
 
 class ConfigManager:
@@ -367,6 +440,7 @@ class ConfigManager:
                     ]
             
             # ネストした設定の処理（フィールド不足の場合はデフォルト値使用）
+            llm_config = self._safe_create_config(LLMConfig, config_dict.get('llm', {}))
             database_config = self._safe_create_config(DatabaseConfig, config_dict.get('database', {}))
             agents_config = self._safe_create_config(AgentConfig, config_dict.get('agents', {}))
             
@@ -375,25 +449,33 @@ class ConfigManager:
             cost_config = self._safe_create_config(CostConfig, cost_data)
             
             safety_config = self._safe_create_config(SafetyConfig, config_dict.get('safety', {}))
-            parallel_config = self._safe_create_config(ParallelConfig, config_dict.get('parallel_execution', {}))
+            parallel_config = self._safe_create_config(ParallelConfig, config_dict.get('parallel_execution', config_dict.get('parallel', {})))
             logging_config = self._safe_create_config(LoggingConfig, config_dict.get('logging', {}))
+            quality_config = self._safe_create_config(QualityConfig, config_dict.get('quality', {}))
+            scheduler_config = self._safe_create_config(SchedulerConfig, config_dict.get('scheduler', {}))
+            obsidian_config = self._safe_create_config(ObsidianConfig, config_dict.get('obsidian', {}))
             
             # メイン設定の作成（新形式の追加フィールドは無視）
             excluded_keys = {
                 'database', 'agents', 'cost', 'cost_management', 'safety', 
-                'parallel_execution', 'logging', 'execution', 'quality', 
+                'parallel_execution', 'parallel', 'logging', 'execution', 'quality', 
                 'notifications', 'integrations', 'development', 'advanced',
-                'project_specific', 'project_type', 'created_at', 'llm'
+                'project_specific', 'project_type', 'created_at', 'llm',
+                'scheduler', 'obsidian'
             }
             main_config = {k: v for k, v in config_dict.items() if k not in excluded_keys}
             
             return NocturnalConfig(
+                llm=llm_config,
                 database=database_config,
                 agents=agents_config,
                 cost_management=cost_config,
                 safety=safety_config,
                 parallel_execution=parallel_config,
                 logging=logging_config,
+                quality=quality_config,
+                scheduler=scheduler_config,
+                obsidian=obsidian_config,
                 **main_config
             )
             

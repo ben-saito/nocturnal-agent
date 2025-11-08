@@ -54,6 +54,15 @@ parallel_execution:
   medium_quality_threshold: 0.7
   quality_assessment_enabled: true
 project_name: Nocturnal Agent Project
+quality:
+  consistency_threshold: 0.85
+  enable_static_analysis: true
+  max_improvement_cycles: 3
+  overall_threshold: 0.85
+  static_analysis_tools:
+  - pylint
+  - flake8
+  - mypy
 safety:
   backup_before_execution: true
   backup_retention_days: 7
@@ -67,6 +76,20 @@ safety:
   enabled: true
   max_rollback_points: 10
   rollback_enabled: true
+scheduler:
+  check_interval_seconds: 30
+  end_time: "06:00"
+  max_changes_per_night: 10
+  max_session_hours: 12
+  max_task_duration_minutes: 30
+  start_time: "22:00"
+  timezone: "Asia/Tokyo"
+obsidian:
+  auto_create_vault: true
+  enable_backlinks: true
+  enable_frontmatter: true
+  markdown_template_path: null
+  vault_path: knowledge-vault
 target_quality_threshold: 0.8
 timezone: Asia/Tokyo
 workspace_path: ./
