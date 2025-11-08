@@ -78,6 +78,7 @@ class NocturnalAgentCLI:
   nocturnal design create --from-requirements requirements/requirements_20250101.md
   nocturnal design validate design.yaml
   nocturnal design summary design.yaml
+  nocturnal design sync design.yaml  # コードから設計書に反映
 
 【ステップ3】実装開始
   nocturnal implement start design.yaml
@@ -702,6 +703,38 @@ class NocturnalAgentCLI:
             help='出力形式（未指定時は拡張子から判定）'
         )
         convert_parser.set_defaults(func=self._design_convert_command)
+        
+        # sync サブコマンド（コードから設計書への同期）
+        sync_parser = design_subparsers.add_parser(
+            'sync',
+            help='コードを解析して設計書に反映',
+            description='実装されたコードを解析し、設計書との差分を検出して設計書に反映します'
+        )
+        sync_parser.add_argument(
+            'design_file',
+            help='更新する設計書ファイルのパス'
+        )
+        sync_parser.add_argument(
+            '--workspace', '-w',
+            help='コードベースのワークスペースパス（未指定時は設計書から取得）'
+        )
+        sync_parser.add_argument(
+            '--dry-run',
+            action='store_true',
+            help='実際には更新せず、差分のみ表示'
+        )
+        sync_parser.add_argument(
+            '--auto-apply',
+            action='store_true',
+            help='確認なしで自動的に設計書を更新'
+        )
+        sync_parser.add_argument(
+            '--backup',
+            action='store_true',
+            default=True,
+            help='更新前に設計書のバックアップを作成（デフォルト: 有効）'
+        )
+        sync_parser.set_defaults(func=self._design_sync_command)
 
     def _add_natural_parser(self, subparsers):
         """natural コマンドのパーサーを追加（自然言語要件処理）"""
@@ -3157,6 +3190,62 @@ nocturnal report daily
         except Exception as e:
             print(f"❌ 変換エラー: {e}")
             if args.verbose:
+                import traceback
+                traceback.print_exc()
+
+    async def _design_sync_command(self, args):
+        """design sync コマンドの実装（コードから設計書への同期）"""
+        try:
+            from ..design.design_sync import DesignSyncManager
+            from pathlib import Path
+            
+            design_file_path = Path(args.design_file)
+            if not design_file_path.exists():
+                print(f"❌ 設計ファイルが見つかりません: {design_file_path}")
+                return
+            
+            # ワークスペースパスを決定
+            workspace_path = args.workspace
+            if not workspace_path:
+                # 設計書から取得を試みる
+                from ..design.design_file_manager import DesignFileManager
+                design_manager = DesignFileManager(self.logger)
+                design = design_manager.load_design_file(design_file_path)
+                if design:
+                    workspace_path = design.get('project_info', {}).get('workspace_path', '.')
+                else:
+                    workspace_path = '.'
+            
+            workspace_path = Path(workspace_path).resolve()
+            if not workspace_path.exists():
+                print(f"❌ ワークスペースが存在しません: {workspace_path}")
+                return
+            
+            print(f"📋 設計ファイル: {design_file_path}")
+            print(f"💻 ワークスペース: {workspace_path}")
+            print(f"🔍 コードを解析して設計書との差分を検出中...\n")
+            
+            # 同期実行
+            sync_manager = DesignSyncManager(self.logger)
+            diffs = sync_manager.sync_design_from_code(
+                design_file_path=design_file_path,
+                workspace_path=workspace_path,
+                dry_run=args.dry_run,
+                auto_apply=args.auto_apply
+            )
+            
+            if diffs:
+                print(f"\n✅ {len(diffs)}件の差分を検出しました")
+                if args.dry_run:
+                    print("💡 実際に更新するには --dry-run オプションを外してください")
+                else:
+                    print("✅ 設計書を更新しました")
+            else:
+                print("\n✅ 設計書とコードに差分はありませんでした")
+            
+        except Exception as e:
+            print(f"❌ 同期エラー: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
                 import traceback
                 traceback.print_exc()
 
