@@ -111,3 +111,13 @@ logging:
   max_file_size_mb: 100
   backup_count: 5
   enable_structlog: true
+
+# Design document synchronization configuration
+design_sync:
+  auto_sync_enabled: true  # Enable automatic design sync after implementation
+  auto_sync_on_immediate: true  # Auto sync after immediate mode execution
+  auto_sync_on_nightly: false  # Auto sync after nightly mode execution
+  auto_sync_on_scheduled: false  # Auto sync after scheduled mode execution
+  create_backup: true  # Create backup before syncing
+  quiet_mode: true  # Use quiet output for auto sync
+  sync_on_error: false  # Attempt sync even on error

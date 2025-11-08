@@ -64,26 +64,42 @@ class NocturnalAgentCLI:
             description="Nocturnal Agent - 夜間自律開発システム",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog="""
-使用例:
-  nocturnal start                    # 夜間実行を開始
-  nocturnal config show              # 設定を表示
-  nocturnal config set monthly_budget 15.0  # 設定を変更
-  nocturnal status                   # システム状況を確認
-  nocturnal report daily             # 日次レポートを生成
-  nocturnal report session SESSION_ID  # セッションレポートを生成
-  
-  # インタラクティブレビュー機能
-  nocturnal review start TASK_TITLE  # タスクからレビュー開始
-  nocturnal review from-file requirements.md  # ファイルからレビュー開始
-  nocturnal review create-sample sample.md    # サンプル要件ファイル作成
-  nocturnal review approve SESSION_ID # 設計を承認
-  nocturnal review status             # レビュー状況確認
-  
-  # 新機能: 設計ファイルベース実行
-  nocturnal execute --design-file design.yaml --mode immediate  # 即時実行
-  nocturnal execute --design-file design.yaml --mode nightly   # 夜間実行
-  nocturnal design create-template agent_name  # エージェント用テンプレート作成
-  nocturnal design validate design.yaml        # 設計ファイル検証
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🌟 シンプルな3ステップワークフロー（推奨）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【ステップ1】要件定義
+  nocturnal requirements create "ECサイトを作成したい。ユーザー登録、商品管理、ショッピングカート機能が必要。"
+  nocturnal requirements from-file requirements.md
+  nocturnal requirements list
+  nocturnal requirements show requirements/requirements_20250101.md
+
+【ステップ2】設計書作成
+  nocturnal design create --from-requirements requirements/requirements_20250101.md
+  nocturnal design validate design.yaml
+  nocturnal design summary design.yaml
+  nocturnal design sync design.yaml  # コードから設計書に反映
+
+【ステップ3】実装開始
+  nocturnal implement start design.yaml
+  nocturnal implement status
+  nocturnal implement stop
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📚 その他のコマンド（詳細機能）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+基本コマンド:
+  nocturnal init                    # プロジェクト初期化
+  nocturnal status                  # システム状況確認
+  nocturnal config show             # 設定表示
+  nocturnal config set KEY VALUE    # 設定変更
+
+レガシーコマンド（非推奨）:
+  nocturnal start                   # 夜間実行開始（旧方式）
+  nocturnal execute                 # 設計ファイル実行（implement startを推奨）
+  nocturnal natural                 # 自然言語処理（requirements + design createを推奨）
+  nocturnal review                  # レビュー機能（requirements + design createを推奨）
             """
         )
         
@@ -142,6 +158,18 @@ class NocturnalAgentCLI:
         
         # collaborate コマンド (新機能: 要件・設計のすり合わせ)
         self._add_collaborate_parser(subparsers)
+        
+        # ============================================
+        # 新しいシンプルな3ステップコマンドシステム
+        # ============================================
+        # requirements コマンド (ステップ1: 要件定義)
+        self._add_requirements_parser(subparsers)
+        
+        # design コマンド (ステップ2: 設計書作成) - 既存のdesignコマンドを拡張
+        # 既に_add_design_parserで定義済み
+        
+        # implement コマンド (ステップ3: 実装開始)
+        self._add_implement_parser(subparsers)
         
         return parser
     
@@ -582,6 +610,37 @@ class NocturnalAgentCLI:
             help='設計ファイル管理アクション'
         )
         
+        # create サブコマンド（ステップ2: 設計書作成）
+        create_parser = design_subparsers.add_parser(
+            'create',
+            help='【ステップ2】設計書を作成',
+            description='要件ファイルから設計書を生成します'
+        )
+        create_parser.add_argument(
+            '--from-requirements', '-r',
+            help='要件ファイルのパス（.md, .txt, .yaml, .json）'
+        )
+        create_parser.add_argument(
+            '--project-name', '-n',
+            help='プロジェクト名（未指定時は現在のディレクトリ名）'
+        )
+        create_parser.add_argument(
+            '--workspace', '-w',
+            default='.',
+            help='ワークスペースディレクトリ（default: 現在のディレクトリ）'
+        )
+        create_parser.add_argument(
+            '--output-dir', '-o',
+            default='./designs',
+            help='出力ディレクトリ（default: ./designs）'
+        )
+        create_parser.add_argument(
+            '--execute',
+            action='store_true',
+            help='設計書生成後、即座に実装を開始'
+        )
+        create_parser.set_defaults(func=self._design_create_command)
+        
         # create-template サブコマンド
         create_template_parser = design_subparsers.add_parser(
             'create-template',
@@ -644,6 +703,38 @@ class NocturnalAgentCLI:
             help='出力形式（未指定時は拡張子から判定）'
         )
         convert_parser.set_defaults(func=self._design_convert_command)
+        
+        # sync サブコマンド（コードから設計書への同期）
+        sync_parser = design_subparsers.add_parser(
+            'sync',
+            help='コードを解析して設計書に反映',
+            description='実装されたコードを解析し、設計書との差分を検出して設計書に反映します'
+        )
+        sync_parser.add_argument(
+            'design_file',
+            help='更新する設計書ファイルのパス'
+        )
+        sync_parser.add_argument(
+            '--workspace', '-w',
+            help='コードベースのワークスペースパス（未指定時は設計書から取得）'
+        )
+        sync_parser.add_argument(
+            '--dry-run',
+            action='store_true',
+            help='実際には更新せず、差分のみ表示'
+        )
+        sync_parser.add_argument(
+            '--auto-apply',
+            action='store_true',
+            help='確認なしで自動的に設計書を更新'
+        )
+        sync_parser.add_argument(
+            '--backup',
+            action='store_true',
+            default=True,
+            help='更新前に設計書のバックアップを作成（デフォルト: 有効）'
+        )
+        sync_parser.set_defaults(func=self._design_sync_command)
 
     def _add_natural_parser(self, subparsers):
         """natural コマンドのパーサーを追加（自然言語要件処理）"""
@@ -855,6 +946,151 @@ class NocturnalAgentCLI:
             help='すべてのすり合わせセッションをリスト表示'
         )
         list_parser.set_defaults(func=self._collaborate_list_command)
+    
+    def _add_requirements_parser(self, subparsers):
+        """requirements コマンドのパーサーを追加（ステップ1: 要件定義）"""
+        requirements_parser = subparsers.add_parser(
+            'requirements',
+            help='【ステップ1】要件定義',
+            description='プロジェクトの要件を定義します。自然言語で要件を記述するか、ファイルから読み込みます。'
+        )
+        
+        requirements_subparsers = requirements_parser.add_subparsers(
+            dest='requirements_action',
+            help='要件定義アクション'
+        )
+        
+        # create サブコマンド
+        create_parser = requirements_subparsers.add_parser(
+            'create',
+            help='新しい要件を作成',
+            description='自然言語で要件を記述して要件ファイルを作成します'
+        )
+        create_parser.add_argument(
+            'description',
+            help='要件の説明（引用符で囲んでください）'
+        )
+        create_parser.add_argument(
+            '--project-name', '-n',
+            help='プロジェクト名（未指定時は現在のディレクトリ名）'
+        )
+        create_parser.add_argument(
+            '--output', '-o',
+            help='出力ファイルパス（未指定時は自動生成）'
+        )
+        create_parser.set_defaults(func=self._requirements_create_command)
+        
+        # from-file サブコマンド
+        from_file_parser = requirements_subparsers.add_parser(
+            'from-file',
+            help='ファイルから要件を読み込み',
+            description='既存の要件ファイル（.md, .txt, .yaml, .json）から要件を読み込みます'
+        )
+        from_file_parser.add_argument(
+            'file_path',
+            help='要件ファイルのパス'
+        )
+        from_file_parser.add_argument(
+            '--project-name', '-n',
+            help='プロジェクト名（未指定時は現在のディレクトリ名）'
+        )
+        from_file_parser.set_defaults(func=self._requirements_from_file_command)
+        
+        # list サブコマンド
+        list_parser = requirements_subparsers.add_parser(
+            'list',
+            help='要件一覧を表示',
+            description='保存されている要件ファイルの一覧を表示します'
+        )
+        list_parser.set_defaults(func=self._requirements_list_command)
+        
+        # show サブコマンド
+        show_parser = requirements_subparsers.add_parser(
+            'show',
+            help='要件の詳細を表示',
+            description='指定した要件ファイルの内容を表示します'
+        )
+        show_parser.add_argument(
+            'file_path',
+            help='要件ファイルのパス'
+        )
+        show_parser.set_defaults(func=self._requirements_show_command)
+    
+    def _add_implement_parser(self, subparsers):
+        """implement コマンドのパーサーを追加（ステップ3: 実装開始）"""
+        implement_parser = subparsers.add_parser(
+            'implement',
+            help='【ステップ3】実装開始',
+            description='設計書に基づいて実装を開始します。設計書からタスクを生成し、実行します。'
+        )
+        
+        implement_subparsers = implement_parser.add_subparsers(
+            dest='implement_action',
+            help='実装アクション'
+        )
+        
+        # start サブコマンド
+        start_parser = implement_subparsers.add_parser(
+            'start',
+            help='実装を開始',
+            description='設計書ファイルから実装を開始します'
+        )
+        start_parser.add_argument(
+            'design_file',
+            help='設計書ファイルのパス（.yaml または .json）'
+        )
+        start_parser.add_argument(
+            '--mode', '-m',
+            choices=['immediate', 'nightly', 'scheduled'],
+            default='immediate',
+            help='実行モード: immediate（即時実行）, nightly（夜間実行）, scheduled（スケジュール実行）'
+        )
+        start_parser.add_argument(
+            '--max-tasks',
+            type=int,
+            default=5,
+            help='一度に実行する最大タスク数（default: 5）'
+        )
+        start_parser.add_argument(
+            '--dry-run',
+            action='store_true',
+            help='実際の実行は行わず、実行計画のみ表示'
+        )
+        start_parser.add_argument(
+            '--schedule-time',
+            help='scheduled モード時の実行時刻（HH:MM形式）'
+        )
+        start_parser.set_defaults(func=self._implement_start_command)
+        
+        # status サブコマンド
+        status_parser = implement_subparsers.add_parser(
+            'status',
+            help='実装状況を確認',
+            description='現在実行中の実装タスクの状況を確認します'
+        )
+        status_parser.add_argument(
+            '--design-file', '-d',
+            help='特定の設計書の進捗を確認（省略時は実行中の全プロジェクト）'
+        )
+        status_parser.add_argument(
+            '--detailed',
+            action='store_true',
+            help='詳細な進捗情報を表示'
+        )
+        status_parser.set_defaults(func=self._implement_status_command)
+        
+        # stop サブコマンド
+        stop_parser = implement_subparsers.add_parser(
+            'stop',
+            help='実装を停止',
+            description='実行中の実装タスクを停止します'
+        )
+        stop_parser.add_argument(
+            '--force', '-f',
+            action='store_true',
+            help='強制停止'
+        )
+        stop_parser.set_defaults(func=self._implement_stop_command)
     
     def _initialize_config(self, config_path: Optional[str] = None):
         """設定初期化"""
@@ -2479,6 +2715,32 @@ nocturnal report daily
                     task_summary = execution_summary['task_summary']
                     print(f"📈 全体進捗: {task_summary['completion_rate']:.1%}")
                 
+                # 実装完了時に自動的に設計書に反映
+                if executed_count > 0:
+                    # 設定を確認して自動同期を実行
+                    design_sync_config = self.config.design_sync
+                    if design_sync_config and design_sync_config.auto_sync_enabled:
+                        if args.mode == 'immediate' and design_sync_config.auto_sync_on_immediate:
+                            print(f"\n🔄 実装完了を設計書に自動反映中...")
+                            try:
+                                await self._auto_sync_design_from_code(
+                                    design_file_path, 
+                                    workspace_path,
+                                    create_backup=design_sync_config.create_backup,
+                                    quiet=design_sync_config.quiet_mode
+                                )
+                            except Exception as sync_error:
+                                print(f"⚠️ 設計書への自動反映でエラーが発生しました: {sync_error}")
+                                print(f"💡 手動で同期するには: nocturnal design sync {design_file_path}")
+                        elif args.mode == 'nightly' and design_sync_config.auto_sync_on_nightly:
+                            print(f"\n🔄 夜間実行完了後、設計書に自動反映されます...")
+                        elif args.mode == 'scheduled' and design_sync_config.auto_sync_on_scheduled:
+                            print(f"\n🔄 スケジュール実行完了後、設計書に自動反映されます...")
+                    else:
+                        if not design_sync_config or not design_sync_config.auto_sync_enabled:
+                            print(f"\n💡 設計書への自動反映は設定で無効化されています")
+                            print(f"   有効にするには: nocturnal config set design_sync.auto_sync_enabled true")
+                
             elif args.mode == 'nightly':
                 print(f"\n🌙 夜間実行にスケジュール（最大{args.max_tasks}タスク）")
                 # 夜間実行スケジューラに登録（既存の実装を使用）
@@ -2695,6 +2957,90 @@ nocturnal report daily
                 
                 print(f"⏰ **予想完了時刻:** {completion_time.strftime('%H:%M:%S')} (約{int(remaining_time/60)}分後)")
 
+    async def _design_create_command(self, args):
+        """design create コマンドの実装（ステップ2: 設計書作成）"""
+        try:
+            from pathlib import Path
+            from ..requirements import RequirementsParser, DesignFileGenerator
+            
+            if not args.from_requirements:
+                print("❌ エラー: --from-requirements オプションが必要です")
+                print("使用例: nocturnal design create --from-requirements requirements/requirements_20250101.md")
+                return
+            
+            requirements_file = Path(args.from_requirements)
+            if not requirements_file.exists():
+                print(f"❌ 要件ファイルが見つかりません: {requirements_file}")
+                return
+            
+            print(f"📄 要件ファイルを読み込み中: {requirements_file}")
+            
+            # ファイルから要件を読み込み
+            with open(requirements_file, 'r', encoding='utf-8') as f:
+                requirements_text = f.read()
+            
+            if not requirements_text.strip():
+                print("❌ ファイルが空です")
+                return
+            
+            # プロジェクト名を決定
+            project_name = args.project_name
+            if not project_name:
+                project_info = self._get_current_project_info()
+                project_name = project_info['project_name']
+            
+            print(f"📋 プロジェクト名: {project_name}")
+            print(f"🧠 要件を解析中...")
+            
+            # 要件解析
+            parser = RequirementsParser()
+            analysis = parser.parse_requirements(requirements_text)
+            
+            print(f"✅ 解析完了:")
+            print(f"  📋 プロジェクトタイプ: {analysis.project_type}")
+            print(f"  📊 複雑度: {analysis.estimated_complexity}")
+            print(f"  🤖 エージェント割り当て: {len(analysis.agent_assignments)}個")
+            
+            # 設計ファイル生成
+            print("\n📝 設計ファイルを生成中...")
+            generator = DesignFileGenerator()
+            workspace_path = Path(args.workspace).resolve()
+            generated_files = generator.generate_design_files(
+                analysis, str(workspace_path), project_name
+            )
+            
+            print("✅ 設計ファイル生成完了:")
+            main_design_file = None
+            for agent, file_path in generated_files.items():
+                print(f"  📄 {agent}: {file_path}")
+                if agent == 'main':
+                    main_design_file = file_path
+            
+            print(f"\n📝 次のステップ:")
+            if main_design_file:
+                print(f"  1. 設計書を確認: {main_design_file}")
+                print(f"  2. 設計書を検証: nocturnal design validate {main_design_file}")
+                print(f"  3. 実装を開始: nocturnal implement start {main_design_file}")
+            
+            # 実行開始
+            if args.execute and main_design_file:
+                print("\n🚀 即座に実装を開始...")
+                implement_args = type('Args', (), {
+                    'design_file': main_design_file,
+                    'mode': 'immediate',
+                    'max_tasks': 5,
+                    'dry_run': False,
+                    'schedule_time': None,
+                    'verbose': getattr(args, 'verbose', False)
+                })()
+                await self._implement_start_command(implement_args)
+                
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+
     async def _design_create_template_command(self, args):
         """design create-template コマンドの実行"""
         try:
@@ -2872,6 +3218,109 @@ nocturnal report daily
             if args.verbose:
                 import traceback
                 traceback.print_exc()
+
+    async def _design_sync_command(self, args):
+        """design sync コマンドの実装（コードから設計書への同期）"""
+        try:
+            from ..design.design_sync import DesignSyncManager
+            from pathlib import Path
+            
+            design_file_path = Path(args.design_file)
+            if not design_file_path.exists():
+                print(f"❌ 設計ファイルが見つかりません: {design_file_path}")
+                return
+            
+            # ワークスペースパスを決定
+            workspace_path = args.workspace
+            if not workspace_path:
+                # 設計書から取得を試みる
+                from ..design.design_file_manager import DesignFileManager
+                design_manager = DesignFileManager(self.logger)
+                design = design_manager.load_design_file(design_file_path)
+                if design:
+                    workspace_path = design.get('project_info', {}).get('workspace_path', '.')
+                else:
+                    workspace_path = '.'
+            
+            workspace_path = Path(workspace_path).resolve()
+            if not workspace_path.exists():
+                print(f"❌ ワークスペースが存在しません: {workspace_path}")
+                return
+            
+            print(f"📋 設計ファイル: {design_file_path}")
+            print(f"💻 ワークスペース: {workspace_path}")
+            print(f"🔍 コードを解析して設計書との差分を検出中...\n")
+            
+            # 同期実行
+            sync_manager = DesignSyncManager(self.logger)
+            diffs = sync_manager.sync_design_from_code(
+                design_file_path=design_file_path,
+                workspace_path=workspace_path,
+                dry_run=args.dry_run,
+                auto_apply=args.auto_apply,
+                quiet=False,  # 手動実行時は詳細出力
+                create_backup=args.backup
+            )
+            
+            if diffs:
+                print(f"\n✅ {len(diffs)}件の差分を検出しました")
+                if args.dry_run:
+                    print("💡 実際に更新するには --dry-run オプションを外してください")
+                else:
+                    print("✅ 設計書を更新しました")
+            else:
+                print("\n✅ 設計書とコードに差分はありませんでした")
+            
+        except Exception as e:
+            print(f"❌ 同期エラー: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+
+    async def _auto_sync_design_from_code(
+        self, 
+        design_file_path: Path, 
+        workspace_path: Path,
+        create_backup: bool = True,
+        quiet: bool = True
+    ) -> bool:
+        """実装完了時に自動的に設計書に反映する（エラーを抑制）"""
+        try:
+            from ..design.design_sync import DesignSyncManager
+            
+            if not design_file_path.exists():
+                return False
+            
+            workspace_path = workspace_path.resolve()
+            if not workspace_path.exists():
+                return False
+            
+            # 自動同期実行（エラーは抑制）
+            sync_manager = DesignSyncManager(self.logger)
+            diffs = sync_manager.sync_design_from_code(
+                design_file_path=design_file_path,
+                workspace_path=workspace_path,
+                dry_run=False,  # 実際に更新
+                auto_apply=True,  # 確認なしで自動適用
+                quiet=quiet,  # 設定に基づく出力モード
+                create_backup=create_backup  # 設定に基づくバックアップ作成
+            )
+            
+            if diffs:
+                if quiet:
+                    print(f"  ✅ {len(diffs)}件の変更を設計書に反映しました")
+                else:
+                    print(f"  ✅ {len(diffs)}件の変更を設計書に反映しました")
+            else:
+                if not quiet:
+                    print(f"  ✅ 設計書とコードに差分はありませんでした")
+            
+            return True
+            
+        except Exception as e:
+            # 自動同期のエラーは警告のみ（実装自体は成功している）
+            self.logger.warning(f"自動設計書同期エラー: {e}")
+            return False
 
 
     def _setup_team_design_environment(self, workspace_path: Path) -> None:
@@ -3932,6 +4381,201 @@ project_specific:
             print(f"❌ エラーが発生しました: {e}")
             import traceback
             traceback.print_exc()
+
+
+    # ============================================
+    # 新しいシンプルな3ステップコマンドハンドラー
+    # ============================================
+    
+    async def _requirements_create_command(self, args):
+        """requirements create コマンドの実装（ステップ1: 要件定義）"""
+        try:
+            from pathlib import Path
+            from datetime import datetime
+            
+            # プロジェクト名を決定
+            project_name = args.project_name
+            if not project_name:
+                project_info = self._get_current_project_info()
+                project_name = project_info['project_name']
+            
+            # 出力ファイルパスを決定
+            output_path = args.output
+            if not output_path:
+                requirements_dir = Path('requirements')
+                requirements_dir.mkdir(exist_ok=True)
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                output_path = requirements_dir / f"requirements_{timestamp}.md"
+            
+            output_path = Path(output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # 要件ファイルを作成
+            requirements_content = f"""# 要件定義書
+
+## プロジェクト名
+{project_name}
+
+## 作成日時
+{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+## 要件説明
+{args.description}
+
+## 詳細要件
+（ここに詳細な要件を記述してください）
+
+## 技術要件
+（使用する技術スタックやフレームワークを記述してください）
+
+## 非機能要件
+（パフォーマンス、セキュリティ、可用性などの要件を記述してください）
+"""
+            
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(requirements_content)
+            
+            print(f"✅ 要件ファイルを作成しました: {output_path}")
+            print(f"\n📝 次のステップ:")
+            print(f"  1. 要件ファイルを編集: {output_path}")
+            print(f"  2. 設計書を作成: nocturnal design create --from-requirements {output_path}")
+            
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+    
+    async def _requirements_from_file_command(self, args):
+        """requirements from-file コマンドの実装"""
+        try:
+            from pathlib import Path
+            
+            file_path = Path(args.file_path)
+            if not file_path.exists():
+                print(f"❌ ファイルが見つかりません: {file_path}")
+                return
+            
+            print(f"📄 要件ファイルを読み込みました: {file_path}")
+            
+            # プロジェクト名を決定
+            project_name = args.project_name
+            if not project_name:
+                project_info = self._get_current_project_info()
+                project_name = project_info['project_name']
+            
+            print(f"📋 プロジェクト名: {project_name}")
+            print(f"\n📝 次のステップ:")
+            print(f"  設計書を作成: nocturnal design create --from-requirements {file_path}")
+            
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+    
+    async def _requirements_list_command(self, args):
+        """requirements list コマンドの実装"""
+        try:
+            from pathlib import Path
+            import glob
+            
+            requirements_dir = Path('requirements')
+            if not requirements_dir.exists():
+                print("📋 要件ファイルはまだ作成されていません")
+                return
+            
+            # 要件ファイルを検索
+            requirement_files = list(requirements_dir.glob('*.md')) + \
+                               list(requirements_dir.glob('*.txt')) + \
+                               list(requirements_dir.glob('*.yaml')) + \
+                               list(requirements_dir.glob('*.json'))
+            
+            if not requirement_files:
+                print("📋 要件ファイルはまだ作成されていません")
+                return
+            
+            print(f"\n📋 要件ファイル一覧 ({len(requirement_files)}件)")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            
+            for i, file_path in enumerate(sorted(requirement_files), 1):
+                print(f"\n{i}. {file_path.name}")
+                print(f"   パス: {file_path}")
+                # ファイルの最初の数行を表示
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        first_line = f.readline().strip()
+                        if first_line:
+                            print(f"   概要: {first_line[:80]}...")
+                except:
+                    pass
+            
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+    
+    async def _requirements_show_command(self, args):
+        """requirements show コマンドの実装"""
+        try:
+            from pathlib import Path
+            
+            file_path = Path(args.file_path)
+            if not file_path.exists():
+                print(f"❌ ファイルが見つかりません: {file_path}")
+                return
+            
+            print(f"\n📄 要件ファイル: {file_path}")
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                print(content)
+            
+            print("\n📝 次のステップ:")
+            print(f"  設計書を作成: nocturnal design create --from-requirements {file_path}")
+            
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+    
+    async def _implement_start_command(self, args):
+        """implement start コマンドの実装（ステップ3: 実装開始）"""
+        # 既存の_execute_commandを呼び出す
+        execute_args = type('Args', (), {
+            'design_file': args.design_file,
+            'mode': args.mode,
+            'max_tasks': args.max_tasks,
+            'dry_run': args.dry_run,
+            'validate_only': False,
+            'schedule_time': args.schedule_time,
+            'verbose': getattr(args, 'verbose', False)
+        })()
+        await self._execute_command(execute_args)
+    
+    async def _implement_status_command(self, args):
+        """implement status コマンドの実装"""
+        # 既存の_progress_commandを呼び出す
+        progress_args = type('Args', (), {
+            'design_file': args.design_file,
+            'workspace': None,
+            'detailed': args.detailed,
+            'refresh': 0,
+            'verbose': getattr(args, 'verbose', False)
+        })()
+        await self._progress_command(progress_args)
+    
+    async def _implement_stop_command(self, args):
+        """implement stop コマンドの実装"""
+        # 既存の_stop_commandを呼び出す
+        stop_args = type('Args', (), {
+            'force': args.force,
+            'verbose': getattr(args, 'verbose', False)
+        })()
+        await self._stop_command(stop_args)
 
 
 def main():
