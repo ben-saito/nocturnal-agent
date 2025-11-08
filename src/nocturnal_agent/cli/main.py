@@ -140,6 +140,9 @@ class NocturnalAgentCLI:
         # dashboard コマンド (新機能: 進捗ダッシュボード)
         self._add_dashboard_parser(subparsers)
         
+        # collaborate コマンド (新機能: 要件・設計のすり合わせ)
+        self._add_collaborate_parser(subparsers)
+        
         return parser
     
     def _add_start_parser(self, subparsers):
@@ -754,6 +757,104 @@ class NocturnalAgentCLI:
         )
         
         dashboard_parser.set_defaults(func=self._dashboard_command)
+    
+    def _add_collaborate_parser(self, subparsers):
+        """collaborate コマンドのパーサーを追加（要件・設計のすり合わせ）"""
+        collaborate_parser = subparsers.add_parser(
+            'collaborate',
+            help='要件・設計のすり合わせと自動実行',
+            description='ユーザーと対話的に要件と設計を確認・修正し、設計確定後は自動実行を継続します'
+        )
+        
+        collaborate_subparsers = collaborate_parser.add_subparsers(
+            dest='collaborate_action',
+            help='すり合わせアクション'
+        )
+        
+        # start サブコマンド
+        start_parser = collaborate_subparsers.add_parser(
+            'start',
+            help='新しいすり合わせセッションを開始'
+        )
+        start_parser.add_argument(
+            'requirements',
+            help='要件の説明（引用符で囲むか、ファイルパス）'
+        )
+        start_parser.add_argument(
+            '--project-name', '-n',
+            help='プロジェクト名'
+        )
+        start_parser.add_argument(
+            '--from-file', '-f',
+            action='store_true',
+            help='要件をファイルから読み込む'
+        )
+        start_parser.set_defaults(func=self._collaborate_start_command)
+        
+        # status サブコマンド
+        status_parser = collaborate_subparsers.add_parser(
+            'status',
+            help='現在のすり合わせセッションのステータスを表示'
+        )
+        status_parser.add_argument(
+            '--session-id', '-s',
+            help='セッションID（未指定時は最新のセッション）'
+        )
+        status_parser.set_defaults(func=self._collaborate_status_command)
+        
+        # approve-requirements サブコマンド
+        approve_req_parser = collaborate_subparsers.add_parser(
+            'approve-requirements',
+            help='要件を承認して設計ファイルを生成'
+        )
+        approve_req_parser.add_argument(
+            '--session-id', '-s',
+            help='セッションID（未指定時は最新のセッション）'
+        )
+        approve_req_parser.set_defaults(func=self._collaborate_approve_requirements_command)
+        
+        # approve-design サブコマンド
+        approve_design_parser = collaborate_subparsers.add_parser(
+            'approve-design',
+            help='設計を承認して実装を開始'
+        )
+        approve_design_parser.add_argument(
+            '--session-id', '-s',
+            help='セッションID（未指定時は最新のセッション）'
+        )
+        approve_design_parser.add_argument(
+            '--auto-execute',
+            action='store_true',
+            help='設計承認後、自動実行を開始'
+        )
+        approve_design_parser.set_defaults(func=self._collaborate_approve_design_command)
+        
+        # update-requirements サブコマンド
+        update_req_parser = collaborate_subparsers.add_parser(
+            'update-requirements',
+            help='要件を更新'
+        )
+        update_req_parser.add_argument(
+            'requirements',
+            help='更新後の要件（引用符で囲むか、ファイルパス）'
+        )
+        update_req_parser.add_argument(
+            '--session-id', '-s',
+            help='セッションID（未指定時は最新のセッション）'
+        )
+        update_req_parser.add_argument(
+            '--from-file', '-f',
+            action='store_true',
+            help='要件をファイルから読み込む'
+        )
+        update_req_parser.set_defaults(func=self._collaborate_update_requirements_command)
+        
+        # list サブコマンド
+        list_parser = collaborate_subparsers.add_parser(
+            'list',
+            help='すべてのすり合わせセッションをリスト表示'
+        )
+        list_parser.set_defaults(func=self._collaborate_list_command)
     
     def _initialize_config(self, config_path: Optional[str] = None):
         """設定初期化"""
@@ -3471,6 +3572,290 @@ project_specific:
             
         except KeyboardInterrupt:
             print("\n\n⚠️ ダッシュボードを停止しました")
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+
+    async def _collaborate_start_command(self, args):
+        """collaborate start コマンド実装"""
+        from ..requirements.collaboration_manager import CollaborationManager
+        
+        try:
+            workspace_path = Path(args.workspace) if hasattr(args, 'workspace') and args.workspace else Path.cwd()
+            
+            # 要件テキストを取得
+            if args.from_file or Path(args.requirements).exists():
+                requirements_file = Path(args.requirements)
+                if not requirements_file.exists():
+                    print(f"❌ ファイルが見つかりません: {requirements_file}")
+                    return
+                with open(requirements_file, 'r', encoding='utf-8') as f:
+                    requirements_text = f.read()
+            else:
+                requirements_text = args.requirements
+            
+            if not requirements_text.strip():
+                print("❌ 要件が空です")
+                return
+            
+            # CollaborationManagerを初期化
+            collab_manager = CollaborationManager(str(workspace_path), self.logger)
+            
+            # プロジェクト名を決定
+            project_name = args.project_name if hasattr(args, 'project_name') and args.project_name else "新規プロジェクト"
+            
+            # すり合わせセッションを開始
+            print(f"📝 新しいすり合わせセッションを開始します...")
+            print(f"📋 プロジェクト名: {project_name}")
+            print(f"📄 要件: {requirements_text[:100]}...")
+            
+            session = collab_manager.start_collaboration(requirements_text, project_name)
+            
+            print(f"\n✅ すり合わせセッションを開始しました:")
+            print(f"  🆔 セッションID: {session.session_id}")
+            print(f"  📊 ステータス: {session.status.value}")
+            print(f"\n次のステップ:")
+            print(f"  1. 要件を確認・修正: nocturnal collaborate update-requirements")
+            print(f"  2. 要件を承認: nocturnal collaborate approve-requirements")
+            print(f"  3. 設計を確認・修正")
+            print(f"  4. 設計を承認: nocturnal collaborate approve-design --auto-execute")
+            
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+    
+    async def _collaborate_status_command(self, args):
+        """collaborate status コマンド実装"""
+        from ..requirements.collaboration_manager import CollaborationManager
+        
+        try:
+            workspace_path = Path(args.workspace) if hasattr(args, 'workspace') and args.workspace else Path.cwd()
+            collab_manager = CollaborationManager(str(workspace_path), self.logger)
+            
+            # セッションを取得
+            if hasattr(args, 'session_id') and args.session_id:
+                session = collab_manager.get_session(args.session_id)
+            else:
+                session = collab_manager.get_current_session()
+                if not session:
+                    sessions = collab_manager.list_sessions()
+                    if sessions:
+                        session = sessions[0]
+            
+            if not session:
+                print("❌ セッションが見つかりません")
+                return
+            
+            print(f"\n📊 すり合わせセッション ステータス")
+            print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print(f"🆔 セッションID: {session.session_id}")
+            print(f"📊 ステータス: {session.status.value}")
+            print(f"📅 作成日時: {session.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"🔄 更新日時: {session.updated_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            if session.approved_at:
+                print(f"✅ 承認日時: {session.approved_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            print(f"\n📝 要件:")
+            print(f"  {session.current_requirements[:200]}...")
+            
+            if session.requirements_feedback:
+                print(f"\n💬 要件フィードバック ({len(session.requirements_feedback)}件):")
+                for i, feedback in enumerate(session.requirements_feedback[-3:], 1):
+                    print(f"  {i}. {feedback['feedback'][:100]}...")
+            
+            if session.design_files:
+                print(f"\n📄 設計ファイル ({len(session.design_files)}個):")
+                for agent, file_path in session.design_files.items():
+                    print(f"  • {agent}: {file_path}")
+            
+            if session.design_feedback:
+                print(f"\n💬 設計フィードバック:")
+                for agent, feedbacks in session.design_feedback.items():
+                    print(f"  • {agent}: {len(feedbacks)}件")
+            
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+    
+    async def _collaborate_approve_requirements_command(self, args):
+        """collaborate approve-requirements コマンド実装"""
+        from ..requirements.collaboration_manager import CollaborationManager
+        
+        try:
+            workspace_path = Path(args.workspace) if hasattr(args, 'workspace') and args.workspace else Path.cwd()
+            collab_manager = CollaborationManager(str(workspace_path), self.logger)
+            
+            # セッションを取得
+            if hasattr(args, 'session_id') and args.session_id:
+                session = collab_manager.get_session(args.session_id)
+            else:
+                session = collab_manager.get_current_session()
+                if not session:
+                    sessions = collab_manager.list_sessions()
+                    if sessions:
+                        session = sessions[0]
+            
+            if not session:
+                print("❌ セッションが見つかりません")
+                return
+            
+            print(f"✅ 要件を承認し、設計ファイルを生成します...")
+            
+            session, analysis = collab_manager.approve_requirements(session.session_id)
+            
+            print(f"\n✅ 要件を承認しました:")
+            print(f"  📊 プロジェクトタイプ: {analysis.project_type}")
+            print(f"  📈 複雑度: {analysis.estimated_complexity}")
+            print(f"  🤖 エージェント数: {len(analysis.agent_assignments)}")
+            
+            print(f"\n📄 生成された設計ファイル:")
+            for agent, file_path in session.design_files.items():
+                print(f"  • {agent}: {file_path}")
+            
+            print(f"\n次のステップ:")
+            print(f"  1. 設計ファイルを確認・修正")
+            print(f"  2. 設計を承認: nocturnal collaborate approve-design --auto-execute")
+            
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+    
+    async def _collaborate_approve_design_command(self, args):
+        """collaborate approve-design コマンド実装"""
+        from ..requirements.collaboration_manager import CollaborationManager
+        from ..requirements.continuous_execution_manager import ContinuousExecutionManager
+        
+        try:
+            workspace_path = Path(args.workspace) if hasattr(args, 'workspace') and args.workspace else Path.cwd()
+            collab_manager = CollaborationManager(str(workspace_path), self.logger)
+            
+            # セッションを取得
+            if hasattr(args, 'session_id') and args.session_id:
+                session = collab_manager.get_session(args.session_id)
+            else:
+                session = collab_manager.get_current_session()
+                if not session:
+                    sessions = collab_manager.list_sessions()
+                    if sessions:
+                        session = sessions[0]
+            
+            if not session:
+                print("❌ セッションが見つかりません")
+                return
+            
+            print(f"✅ 設計を承認します...")
+            
+            session = collab_manager.approve_design(session.session_id)
+            
+            print(f"\n✅ 設計を承認しました:")
+            print(f"  🆔 セッションID: {session.session_id}")
+            print(f"  📊 ステータス: {session.status.value}")
+            print(f"  📄 設計ファイル数: {len(session.design_files)}")
+            
+            # 自動実行を開始
+            if hasattr(args, 'auto_execute') and args.auto_execute:
+                print(f"\n🚀 自動実行を開始します...")
+                
+                exec_manager = ContinuousExecutionManager(
+                    str(workspace_path), self.logger, self.config
+                )
+                
+                auto_session = await exec_manager.start_continuous_execution(session.session_id)
+                
+                print(f"\n✅ 自動実行を開始しました:")
+                print(f"  🆔 実行セッションID: {auto_session.session_id}")
+                print(f"  📊 ステータス: {auto_session.status.value}")
+                print(f"\n進捗確認:")
+                print(f"  nocturnal collaborate status --session-id {session.session_id}")
+            
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+    
+    async def _collaborate_update_requirements_command(self, args):
+        """collaborate update-requirements コマンド実装"""
+        from ..requirements.collaboration_manager import CollaborationManager
+        
+        try:
+            workspace_path = Path(args.workspace) if hasattr(args, 'workspace') and args.workspace else Path.cwd()
+            collab_manager = CollaborationManager(str(workspace_path), self.logger)
+            
+            # セッションを取得
+            if hasattr(args, 'session_id') and args.session_id:
+                session = collab_manager.get_session(args.session_id)
+            else:
+                session = collab_manager.get_current_session()
+                if not session:
+                    sessions = collab_manager.list_sessions()
+                    if sessions:
+                        session = sessions[0]
+            
+            if not session:
+                print("❌ セッションが見つかりません")
+                return
+            
+            # 要件テキストを取得
+            if hasattr(args, 'from_file') and args.from_file or Path(args.requirements).exists():
+                requirements_file = Path(args.requirements)
+                if not requirements_file.exists():
+                    print(f"❌ ファイルが見つかりません: {requirements_file}")
+                    return
+                with open(requirements_file, 'r', encoding='utf-8') as f:
+                    requirements_text = f.read()
+            else:
+                requirements_text = args.requirements
+            
+            print(f"📝 要件を更新します...")
+            
+            session = collab_manager.update_requirements(session.session_id, requirements_text)
+            
+            print(f"\n✅ 要件を更新しました:")
+            print(f"  🆔 セッションID: {session.session_id}")
+            print(f"  📊 ステータス: {session.status.value}")
+            print(f"  📝 更新後の要件: {session.current_requirements[:200]}...")
+            
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
+    
+    async def _collaborate_list_command(self, args):
+        """collaborate list コマンド実装"""
+        from ..requirements.collaboration_manager import CollaborationManager
+        
+        try:
+            workspace_path = Path(args.workspace) if hasattr(args, 'workspace') and args.workspace else Path.cwd()
+            collab_manager = CollaborationManager(str(workspace_path), self.logger)
+            
+            sessions = collab_manager.list_sessions()
+            
+            if not sessions:
+                print("📋 すり合わせセッションはありません")
+                return
+            
+            print(f"\n📋 すり合わせセッション一覧 ({len(sessions)}件)")
+            print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            
+            for i, session in enumerate(sessions, 1):
+                print(f"\n{i}. セッションID: {session.session_id}")
+                print(f"   ステータス: {session.status.value}")
+                print(f"   作成日時: {session.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+                if session.approved_at:
+                    print(f"   承認日時: {session.approved_at.strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"   要件: {session.current_requirements[:100]}...")
+            
         except Exception as e:
             print(f"❌ エラーが発生しました: {e}")
             if hasattr(args, 'verbose') and args.verbose:
