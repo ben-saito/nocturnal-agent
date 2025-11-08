@@ -2717,12 +2717,29 @@ nocturnal report daily
                 
                 # 実装完了時に自動的に設計書に反映
                 if executed_count > 0:
-                    print(f"\n🔄 実装完了を設計書に自動反映中...")
-                    try:
-                        await self._auto_sync_design_from_code(design_file_path, workspace_path)
-                    except Exception as sync_error:
-                        print(f"⚠️ 設計書への自動反映でエラーが発生しました: {sync_error}")
-                        print(f"💡 手動で同期するには: nocturnal design sync {design_file_path}")
+                    # 設定を確認して自動同期を実行
+                    design_sync_config = self.config.design_sync
+                    if design_sync_config and design_sync_config.auto_sync_enabled:
+                        if args.mode == 'immediate' and design_sync_config.auto_sync_on_immediate:
+                            print(f"\n🔄 実装完了を設計書に自動反映中...")
+                            try:
+                                await self._auto_sync_design_from_code(
+                                    design_file_path, 
+                                    workspace_path,
+                                    create_backup=design_sync_config.create_backup,
+                                    quiet=design_sync_config.quiet_mode
+                                )
+                            except Exception as sync_error:
+                                print(f"⚠️ 設計書への自動反映でエラーが発生しました: {sync_error}")
+                                print(f"💡 手動で同期するには: nocturnal design sync {design_file_path}")
+                        elif args.mode == 'nightly' and design_sync_config.auto_sync_on_nightly:
+                            print(f"\n🔄 夜間実行完了後、設計書に自動反映されます...")
+                        elif args.mode == 'scheduled' and design_sync_config.auto_sync_on_scheduled:
+                            print(f"\n🔄 スケジュール実行完了後、設計書に自動反映されます...")
+                    else:
+                        if not design_sync_config or not design_sync_config.auto_sync_enabled:
+                            print(f"\n💡 設計書への自動反映は設定で無効化されています")
+                            print(f"   有効にするには: nocturnal config set design_sync.auto_sync_enabled true")
                 
             elif args.mode == 'nightly':
                 print(f"\n🌙 夜間実行にスケジュール（最大{args.max_tasks}タスク）")
@@ -3240,7 +3257,9 @@ nocturnal report daily
                 design_file_path=design_file_path,
                 workspace_path=workspace_path,
                 dry_run=args.dry_run,
-                auto_apply=args.auto_apply
+                auto_apply=args.auto_apply,
+                quiet=False,  # 手動実行時は詳細出力
+                create_backup=args.backup
             )
             
             if diffs:
@@ -3258,7 +3277,13 @@ nocturnal report daily
                 import traceback
                 traceback.print_exc()
 
-    async def _auto_sync_design_from_code(self, design_file_path: Path, workspace_path: Path) -> bool:
+    async def _auto_sync_design_from_code(
+        self, 
+        design_file_path: Path, 
+        workspace_path: Path,
+        create_backup: bool = True,
+        quiet: bool = True
+    ) -> bool:
         """実装完了時に自動的に設計書に反映する（エラーを抑制）"""
         try:
             from ..design.design_sync import DesignSyncManager
@@ -3277,13 +3302,18 @@ nocturnal report daily
                 workspace_path=workspace_path,
                 dry_run=False,  # 実際に更新
                 auto_apply=True,  # 確認なしで自動適用
-                quiet=True  # 簡潔な出力
+                quiet=quiet,  # 設定に基づく出力モード
+                create_backup=create_backup  # 設定に基づくバックアップ作成
             )
             
             if diffs:
-                print(f"  ✅ {len(diffs)}件の変更を設計書に反映しました")
+                if quiet:
+                    print(f"  ✅ {len(diffs)}件の変更を設計書に反映しました")
+                else:
+                    print(f"  ✅ {len(diffs)}件の変更を設計書に反映しました")
             else:
-                print(f"  ✅ 設計書とコードに差分はありませんでした")
+                if not quiet:
+                    print(f"  ✅ 設計書とコードに差分はありませんでした")
             
             return True
             

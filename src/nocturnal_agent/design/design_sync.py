@@ -39,7 +39,8 @@ class DesignSyncManager:
         workspace_path: Path,
         dry_run: bool = False,
         auto_apply: bool = False,
-        quiet: bool = False
+        quiet: bool = False,
+        create_backup: bool = True
     ) -> List[DesignDiff]:
         """コードを解析して設計書に反映"""
         
@@ -74,7 +75,7 @@ class DesignSyncManager:
         # 設計書を更新
         if auto_apply or (not quiet and self._confirm_update()):
             updated_design = self._apply_diffs(design, code_analysis, diffs)
-            self._save_design_file(design_file_path, updated_design, backup=True)
+            self._save_design_file(design_file_path, updated_design, backup=create_backup)
             if not quiet:
                 self.logger.info(f"✅ 設計書を更新しました: {design_file_path}")
         else:

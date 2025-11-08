@@ -185,6 +185,7 @@ class NocturnalConfig:
     quality: QualityConfig = None
     scheduler: SchedulerConfig = None
     obsidian: ObsidianConfig = None
+    design_sync: DesignSyncConfig = None
     
     # 高度な設定
     debug_mode: bool = False
@@ -454,6 +455,7 @@ class ConfigManager:
             quality_config = self._safe_create_config(QualityConfig, config_dict.get('quality', {}))
             scheduler_config = self._safe_create_config(SchedulerConfig, config_dict.get('scheduler', {}))
             obsidian_config = self._safe_create_config(ObsidianConfig, config_dict.get('obsidian', {}))
+            design_sync_config = self._safe_create_config(DesignSyncConfig, config_dict.get('design_sync', {}))
             
             # メイン設定の作成（新形式の追加フィールドは無視）
             excluded_keys = {
@@ -461,7 +463,7 @@ class ConfigManager:
                 'parallel_execution', 'parallel', 'logging', 'execution', 'quality', 
                 'notifications', 'integrations', 'development', 'advanced',
                 'project_specific', 'project_type', 'created_at', 'llm',
-                'scheduler', 'obsidian'
+                'scheduler', 'obsidian', 'design_sync'
             }
             main_config = {k: v for k, v in config_dict.items() if k not in excluded_keys}
             
@@ -476,6 +478,7 @@ class ConfigManager:
                 quality=quality_config,
                 scheduler=scheduler_config,
                 obsidian=obsidian_config,
+                design_sync=design_sync_config,
                 **main_config
             )
             

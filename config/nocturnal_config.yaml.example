@@ -79,6 +79,16 @@ logging:
   console_output: true             # コンソール出力
   file_output: true                # ファイル出力
 
+# 設計書同期設定
+design_sync:
+  auto_sync_enabled: true          # 実装完了時の自動同期を有効化
+  auto_sync_on_immediate: true     # immediateモード完了時の自動同期
+  auto_sync_on_nightly: false      # nightlyモード完了時の自動同期
+  auto_sync_on_scheduled: false    # scheduledモード完了時の自動同期
+  create_backup: true              # 同期前にバックアップを作成
+  quiet_mode: true                 # 自動同期時の出力を簡潔にする
+  sync_on_error: false             # エラー発生時も同期を試行する
+
 # 環境変数による設定オーバーライド例:
 # NOCTURNAL_PROJECT_NAME="My Project"           # project_name を上書き
 # NOCTURNAL_MONTHLY_BUDGET=15.0                 # cost_management.monthly_budget を上書き
