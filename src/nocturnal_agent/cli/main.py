@@ -2715,6 +2715,15 @@ nocturnal report daily
                     task_summary = execution_summary['task_summary']
                     print(f"📈 全体進捗: {task_summary['completion_rate']:.1%}")
                 
+                # 実装完了時に自動的に設計書に反映
+                if executed_count > 0:
+                    print(f"\n🔄 実装完了を設計書に自動反映中...")
+                    try:
+                        await self._auto_sync_design_from_code(design_file_path, workspace_path)
+                    except Exception as sync_error:
+                        print(f"⚠️ 設計書への自動反映でエラーが発生しました: {sync_error}")
+                        print(f"💡 手動で同期するには: nocturnal design sync {design_file_path}")
+                
             elif args.mode == 'nightly':
                 print(f"\n🌙 夜間実行にスケジュール（最大{args.max_tasks}タスク）")
                 # 夜間実行スケジューラに登録（既存の実装を使用）
@@ -3248,6 +3257,40 @@ nocturnal report daily
             if hasattr(args, 'verbose') and args.verbose:
                 import traceback
                 traceback.print_exc()
+
+    async def _auto_sync_design_from_code(self, design_file_path: Path, workspace_path: Path) -> bool:
+        """実装完了時に自動的に設計書に反映する（エラーを抑制）"""
+        try:
+            from ..design.design_sync import DesignSyncManager
+            
+            if not design_file_path.exists():
+                return False
+            
+            workspace_path = workspace_path.resolve()
+            if not workspace_path.exists():
+                return False
+            
+            # 自動同期実行（エラーは抑制）
+            sync_manager = DesignSyncManager(self.logger)
+            diffs = sync_manager.sync_design_from_code(
+                design_file_path=design_file_path,
+                workspace_path=workspace_path,
+                dry_run=False,  # 実際に更新
+                auto_apply=True,  # 確認なしで自動適用
+                quiet=True  # 簡潔な出力
+            )
+            
+            if diffs:
+                print(f"  ✅ {len(diffs)}件の変更を設計書に反映しました")
+            else:
+                print(f"  ✅ 設計書とコードに差分はありませんでした")
+            
+            return True
+            
+        except Exception as e:
+            # 自動同期のエラーは警告のみ（実装自体は成功している）
+            self.logger.warning(f"自動設計書同期エラー: {e}")
+            return False
 
 
     def _setup_team_design_environment(self, workspace_path: Path) -> None:

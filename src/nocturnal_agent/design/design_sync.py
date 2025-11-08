@@ -38,7 +38,8 @@ class DesignSyncManager:
         design_file_path: Path,
         workspace_path: Path,
         dry_run: bool = False,
-        auto_apply: bool = False
+        auto_apply: bool = False,
+        quiet: bool = False
     ) -> List[DesignDiff]:
         """コードを解析して設計書に反映"""
         
@@ -48,7 +49,8 @@ class DesignSyncManager:
             return []
         
         # コードを解析
-        self.logger.info(f"コードベースを解析中: {workspace_path}")
+        if not quiet:
+            self.logger.info(f"コードベースを解析中: {workspace_path}")
         analyzer = CodeAnalyzer(str(workspace_path))
         code_analysis = analyzer.analyze_codebase()
         
@@ -56,23 +58,28 @@ class DesignSyncManager:
         diffs = self._detect_differences(design, code_analysis)
         
         if not diffs:
-            self.logger.info("✅ 設計書とコードに差分はありません")
+            if not quiet:
+                self.logger.info("✅ 設計書とコードに差分はありません")
             return []
         
-        # 差分を表示
-        self._print_diffs(diffs)
+        # 差分を表示（quietモードでない場合）
+        if not quiet:
+            self._print_diffs(diffs)
         
         if dry_run:
-            self.logger.info("🔍 Dry-runモード: 設計書は更新されませんでした")
+            if not quiet:
+                self.logger.info("🔍 Dry-runモード: 設計書は更新されませんでした")
             return diffs
         
         # 設計書を更新
-        if auto_apply or self._confirm_update():
+        if auto_apply or (not quiet and self._confirm_update()):
             updated_design = self._apply_diffs(design, code_analysis, diffs)
             self._save_design_file(design_file_path, updated_design, backup=True)
-            self.logger.info(f"✅ 設計書を更新しました: {design_file_path}")
+            if not quiet:
+                self.logger.info(f"✅ 設計書を更新しました: {design_file_path}")
         else:
-            self.logger.info("❌ 設計書の更新がキャンセルされました")
+            if not quiet:
+                self.logger.info("❌ 設計書の更新がキャンセルされました")
         
         return diffs
     
