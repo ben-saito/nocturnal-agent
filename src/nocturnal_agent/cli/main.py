@@ -137,6 +137,9 @@ class NocturnalAgentCLI:
         # natural コマンド (新機能: 自然言語要件処理)
         self._add_natural_parser(subparsers)
         
+        # dashboard コマンド (新機能: 進捗ダッシュボード)
+        self._add_dashboard_parser(subparsers)
+        
         return parser
     
     def _add_start_parser(self, subparsers):
@@ -723,6 +726,34 @@ class NocturnalAgentCLI:
             help='生成後、即座に実行を開始'
         )
         from_file_parser.set_defaults(func=self._natural_from_file_command)
+    
+    def _add_dashboard_parser(self, subparsers):
+        """dashboard コマンドのパーサーを追加（進捗ダッシュボード）"""
+        dashboard_parser = subparsers.add_parser(
+            'dashboard', 
+            help='進捗ダッシュボードを起動',
+            description='エージェントの進捗状況を確認できるウェブダッシュボードを起動します'
+        )
+        
+        dashboard_parser.add_argument(
+            '--host',
+            default='0.0.0.0',
+            help='サーバーのホストアドレス（default: 0.0.0.0）'
+        )
+        
+        dashboard_parser.add_argument(
+            '--port', '-p',
+            type=int,
+            default=8000,
+            help='サーバーのポート番号（default: 8000）'
+        )
+        
+        dashboard_parser.add_argument(
+            '--workspace', '-w',
+            help='ワークスペースディレクトリ（未指定時は現在のディレクトリ）'
+        )
+        
+        dashboard_parser.set_defaults(func=self._dashboard_command)
     
     def _initialize_config(self, config_path: Optional[str] = None):
         """設定初期化"""
@@ -3414,6 +3445,37 @@ project_specific:
                 
         except Exception as e:
             print(f"❌ エラーが発生しました: {e}")
+    
+    def _dashboard_command(self, args):
+        """dashboard コマンド実装"""
+        from ..dashboard.api_server import DashboardAPIServer
+        
+        try:
+            # ワークスペースパスの決定
+            if args.workspace:
+                workspace_path = Path(args.workspace).resolve()
+            elif hasattr(args, 'workspace') and args.workspace:
+                workspace_path = Path(args.workspace).resolve()
+            else:
+                workspace_path = Path.cwd()
+            
+            print(f"🌙 Nocturnal Agent 進捗ダッシュボードを起動します...")
+            print(f"📁 ワークスペース: {workspace_path}")
+            print(f"🌐 サーバー: http://{args.host}:{args.port}")
+            print(f"\nブラウザで http://localhost:{args.port} にアクセスしてください")
+            print("停止するには Ctrl+C を押してください\n")
+            
+            # ダッシュボードサーバーを起動
+            server = DashboardAPIServer(workspace_path=str(workspace_path))
+            server.run(host=args.host, port=args.port)
+            
+        except KeyboardInterrupt:
+            print("\n\n⚠️ ダッシュボードを停止しました")
+        except Exception as e:
+            print(f"❌ エラーが発生しました: {e}")
+            if hasattr(args, 'verbose') and args.verbose:
+                import traceback
+                traceback.print_exc()
 
     async def _natural_from_file_command(self, args):
         """ファイルから要件を読み込んで処理"""

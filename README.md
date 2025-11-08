@@ -352,6 +352,10 @@ nocturnal execute --design-file web_ui_system.yaml --mode immediate --max-tasks 
 # Monitor progress / 進捗監視
 nocturnal status
 nocturnal logs --recent
+
+# Launch dashboard / ダッシュボード起動
+nocturnal dashboard --port 8000
+# ブラウザで http://localhost:8000 にアクセス
 ```
 
 #### 7. Development Workflow / 開発ワークフロー
@@ -611,6 +615,7 @@ nocturnal start
 | Command | Description | Example |
 |---------|-------------|---------|
 | `nocturnal status` | Show system status<br/>システム状況表示 | `nocturnal status` |
+| `nocturnal dashboard` | Launch progress dashboard<br/>進捗ダッシュボードを起動 | `nocturnal dashboard --port 8000` |
 | `nocturnal report daily` | Generate daily report<br/>日次レポート生成 | `nocturnal report daily` |
 | `nocturnal cost status` | Show cost status<br/>コスト状況表示 | `nocturnal cost status` |
 | `nocturnal safety status` | Show safety status<br/>安全性状況表示 | `nocturnal safety status` |
@@ -681,6 +686,14 @@ nocturnal start
   - [x] **✅ Complete command test suite / 完全コマンドテストスイート**
   - [x] **✅ All na commands verified working / 全naコマンド動作確認済み**
 
+- [x] **📊 Progress Dashboard / 進捗ダッシュボード** *(NEW!)*
+  - [x] Web-based dashboard interface / ウェブベースダッシュボードインターフェース
+  - [x] Agent-specific progress tracking / エージェント別進捗追跡
+  - [x] Real-time task status updates / リアルタイムタスクステータス更新
+  - [x] Task statistics and charts / タスク統計とチャート
+  - [x] RESTful API endpoints / RESTful APIエンドポイント
+  - [x] **✅ Legacy task file support / レガシータスクファイルサポート**
+
 ### 🚧 Legacy Features (Maintained) / レガシー機能（維持）
 
 - [x] Night scheduler / 夜間スケジューラ
@@ -701,6 +714,8 @@ nocturnal-agent/
 │   ├── execution/                      # Execution engines / 実行エンジン
 │   │   ├── spec_driven_executor.py
 │   │   └── implementation_task_manager.py
+│   ├── dashboard/                      # Progress dashboard / 進捗ダッシュボード
+│   │   └── api_server.py
 │   ├── log_system/                     # Logging system / ログシステム
 │   │   └── structured_logger.py
 │   ├── cli/                           # Command line interface / コマンドラインインターフェース
